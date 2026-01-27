@@ -19,44 +19,25 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-
-const portfolios = [
-    {
-        value: "all",
-        label: "All Portfolios",
-        icon: Wallet,
-    },
-    {
-        value: "personal",
-        label: "Personal Stock",
-        icon: Wallet,
-    },
-    {
-        value: "crypto",
-        label: "Crypto Assets",
-        icon: Wallet,
-    },
-    {
-        value: "real_estate",
-        label: "Real Estate",
-        icon: Wallet,
-    },
-    {
-        value: "retirement",
-        label: "Retirement (IRA)",
-        icon: Wallet,
-    },
-]
+import { Portfolio } from "@/lib/api"
+import { CreatePortfolioDialog } from "@/components/portfolio/create-portfolio-dialog"
 
 type PortfolioSelectorProps = {
+    portfolios: Portfolio[]
     selectedPortfolio: string
     onSelect: (value: string) => void
+    onPortfolioCreated: () => void
 }
 
-export function PortfolioSelector({ selectedPortfolio, onSelect }: PortfolioSelectorProps) {
+export function PortfolioSelector({ portfolios, selectedPortfolio, onSelect, onPortfolioCreated }: PortfolioSelectorProps) {
     const [open, setOpen] = React.useState(false)
 
-    const selected = portfolios.find(p => p.value === selectedPortfolio) || portfolios[0]
+    // Build list with "All Portfolios" option
+    const allOption = { id: 0, name: "All Portfolios", value: "all" }
+
+    const selected = selectedPortfolio === "all"
+        ? allOption
+        : portfolios.find(p => p.id.toString() === selectedPortfolio) || allOption
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -68,8 +49,8 @@ export function PortfolioSelector({ selectedPortfolio, onSelect }: PortfolioSele
                     className="w-[200px] justify-between"
                 >
                     <div className="flex items-center gap-2 truncate">
-                        <selected.icon className="h-4 w-4 shrink-0 opacity-50" />
-                        {selected.label}
+                        <Wallet className="h-4 w-4 shrink-0 opacity-50" />
+                        {selected.name}
                     </div>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -80,10 +61,27 @@ export function PortfolioSelector({ selectedPortfolio, onSelect }: PortfolioSele
                     <CommandList>
                         <CommandEmpty>No portfolio found.</CommandEmpty>
                         <CommandGroup heading="Portfolios">
+                            {/* All Portfolios option */}
+                            <CommandItem
+                                value="all"
+                                onSelect={() => {
+                                    onSelect("all")
+                                    setOpen(false)
+                                }}
+                            >
+                                <Check
+                                    className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selectedPortfolio === "all" ? "opacity-100" : "opacity-0"
+                                    )}
+                                />
+                                All Portfolios
+                            </CommandItem>
+                            {/* Dynamic portfolios from API */}
                             {portfolios.map((portfolio) => (
                                 <CommandItem
-                                    key={portfolio.value}
-                                    value={portfolio.value}
+                                    key={portfolio.id}
+                                    value={portfolio.id.toString()}
                                     onSelect={(currentValue) => {
                                         onSelect(currentValue === selectedPortfolio ? "all" : currentValue)
                                         setOpen(false)
@@ -92,19 +90,27 @@ export function PortfolioSelector({ selectedPortfolio, onSelect }: PortfolioSele
                                     <Check
                                         className={cn(
                                             "mr-2 h-4 w-4",
-                                            selectedPortfolio === portfolio.value ? "opacity-100" : "opacity-0"
+                                            selectedPortfolio === portfolio.id.toString() ? "opacity-100" : "opacity-0"
                                         )}
                                     />
-                                    {portfolio.label}
+                                    {portfolio.name}
                                 </CommandItem>
                             ))}
                         </CommandGroup>
                         <CommandSeparator />
                         <CommandGroup>
-                            <CommandItem>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Create Portfolio
-                            </CommandItem>
+                            <CreatePortfolioDialog
+                                onCreated={() => {
+                                    setOpen(false)
+                                    onPortfolioCreated()
+                                }}
+                                trigger={
+                                    <div className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground">
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Create Portfolio
+                                    </div>
+                                }
+                            />
                         </CommandGroup>
                     </CommandList>
                 </Command>

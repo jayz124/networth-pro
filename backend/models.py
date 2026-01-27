@@ -46,11 +46,57 @@ class PortfolioHolding(BaseModel, table=True):
 class BalanceSnapshot(BaseModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     date: datetime = Field(index=True)
-    
+
     # identifying the entity
     account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     liability_id: Optional[int] = Field(default=None, foreign_key="liability.id")
-    
+
     # value
     amount: float
     currency: str
+
+
+# Security metadata cache
+class SecurityInfo(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ticker: str = Field(index=True, unique=True)
+    name: str
+    asset_type: str  # stock, etf, crypto, bond, mutual_fund
+    exchange: Optional[str] = None
+    currency: str = Field(default="USD")
+    sector: Optional[str] = None
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+
+
+# Price cache (5-min TTL)
+class PriceCache(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ticker: str = Field(index=True)
+    current_price: float
+    previous_close: Optional[float] = None
+    change_percent: Optional[float] = None
+    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# Real Estate
+class Property(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    address: str
+    property_type: str  # residential, commercial, rental, land
+    purchase_price: float
+    purchase_date: Optional[str] = None
+    current_value: float
+    currency: str = Field(default="USD")
+
+
+class Mortgage(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    property_id: int = Field(foreign_key="property.id")
+    lender: Optional[str] = None
+    original_principal: float
+    current_balance: float
+    interest_rate: float
+    monthly_payment: float
+    term_years: int
+    is_active: bool = Field(default=True)

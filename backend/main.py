@@ -9,12 +9,14 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
 
-from api import dashboard, portfolio
+from api import dashboard, portfolio, securities, real_estate
 
 app = FastAPI(title="Networth Pro API", lifespan=lifespan)
 
 app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(portfolio.router, prefix="/api/v1")
+app.include_router(securities.router, prefix="/api/v1")
+app.include_router(real_estate.router, prefix="/api/v1")
 
 @app.get("/")
 def read_root():
