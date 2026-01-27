@@ -775,3 +775,64 @@ export async function updateLiabilityBalance(
         return null;
     }
 }
+
+// Settings APIs
+export async function resetDatabase(): Promise<{ success: boolean; message: string }> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/settings/reset-database`, {
+            method: 'POST',
+        });
+
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({ message: 'Failed to reset database' }));
+            return { success: false, message: error.message || 'Failed to reset database' };
+        }
+
+        return { success: true, message: 'Database reset successfully' };
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: 'Failed to connect to server' };
+    }
+}
+
+export async function exportData(): Promise<Blob | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/settings/export`, {
+            method: 'GET',
+        });
+
+        if (!res.ok) {
+            throw new Error('Failed to export data');
+        }
+
+        return res.blob();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function importData(file: File): Promise<{ success: boolean; message: string }> {
+    try {
+        const baseUrl = getBaseUrl();
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch(`${baseUrl}/api/v1/settings/import`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({ message: 'Failed to import data' }));
+            return { success: false, message: error.message || 'Failed to import data' };
+        }
+
+        return { success: true, message: 'Data imported successfully' };
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: 'Failed to connect to server' };
+    }
+}

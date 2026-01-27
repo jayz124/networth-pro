@@ -10,6 +10,7 @@ import {
     CartesianGrid
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { useSettings } from "@/lib/settings-context"
 
 interface HistoryData {
     date: string
@@ -19,6 +20,7 @@ interface HistoryData {
 }
 
 export function NetWorthChart({ data }: { data: HistoryData[] }) {
+    const { settings, formatCurrency, formatCompactCurrency } = useSettings()
     if (!data || data.length === 0) {
         return (
             <Card className="h-full">
@@ -85,7 +87,7 @@ export function NetWorthChart({ data }: { data: HistoryData[] }) {
                                 fontSize={11}
                                 tickLine={false}
                                 axisLine={false}
-                                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                                tickFormatter={(value) => formatCompactCurrency(value)}
                                 dx={-10}
                             />
                             <CartesianGrid
@@ -112,7 +114,7 @@ export function NetWorthChart({ data }: { data: HistoryData[] }) {
                                 }}
                                 formatter={(value: any) => [
                                     <span key="value" style={{ color: "hsl(38, 92%, 50%)", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
-                                        ${value.toLocaleString()}
+                                        {formatCurrency(value)}
                                     </span>,
                                     "Net Worth"
                                 ]}

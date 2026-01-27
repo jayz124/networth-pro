@@ -24,6 +24,7 @@ import {
 import { Liability, deleteLiability } from "@/lib/api"
 import { LiabilityForm } from "@/components/liabilities/liability-form"
 import { UpdateLiabilityBalanceDialog } from "@/components/liabilities/update-liability-balance-dialog"
+import { useSettings } from "@/lib/settings-context"
 
 type LiabilityCardProps = {
     liability: Liability
@@ -74,15 +75,7 @@ export function LiabilityCard({ liability, onUpdate }: LiabilityCardProps) {
     const [showEditDialog, setShowEditDialog] = React.useState(false)
     const [showBalanceDialog, setShowBalanceDialog] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
-
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(value)
-    }
+    const { formatCurrency } = useSettings()
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'Never'

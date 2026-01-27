@@ -2,6 +2,7 @@
 
 import { Wallet, Building, TrendingUp, PiggyBank } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useSettings } from "@/lib/settings-context"
 
 type AccountSummaryProps = {
     totalBalance: number
@@ -12,14 +13,7 @@ type AccountSummaryProps = {
 }
 
 export function AccountSummary({ totalBalance, checkingBalance, savingsBalance, investmentBalance, accountCount = 0 }: AccountSummaryProps) {
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(value)
-    }
+    const { formatCurrency } = useSettings()
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

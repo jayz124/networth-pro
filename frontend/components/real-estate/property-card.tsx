@@ -24,6 +24,7 @@ import {
 import { Property, deleteProperty } from "@/lib/api"
 import { MortgageForm } from "@/components/real-estate/mortgage-form"
 import { PropertyForm } from "@/components/real-estate/property-form"
+import { useSettings } from "@/lib/settings-context"
 
 type PropertyCardProps = {
     property: Property
@@ -50,15 +51,7 @@ export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
     const [showEditDialog, setShowEditDialog] = React.useState(false)
     const [showMortgageDialog, setShowMortgageDialog] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
-
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(value)
-    }
+    const { formatCurrency } = useSettings()
 
     const handleDelete = async () => {
         setIsDeleting(true)

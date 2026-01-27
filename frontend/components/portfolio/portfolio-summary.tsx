@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, BarChart3, Briefcase } from "lucide-react"
+import { useSettings } from "@/lib/settings-context"
 
 type SummaryProps = {
     totalValue: number
@@ -15,6 +16,7 @@ type SummaryProps = {
 }
 
 export function PortfolioSummary({ totalValue, dayChange, dayChangePercent, topPerformer, holdingsCount = 0 }: SummaryProps) {
+    const { formatCurrency } = useSettings()
     const isPositive = dayChange >= 0
     const performerPositive = topPerformer.change >= 0
 
@@ -31,7 +33,7 @@ export function PortfolioSummary({ totalValue, dayChange, dayChangePercent, topP
                 </CardHeader>
                 <CardContent className="relative">
                     <div className="text-3xl font-bold tabular-nums tracking-tight">
-                        ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(totalValue)}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                         Across all portfolios
@@ -53,7 +55,7 @@ export function PortfolioSummary({ totalValue, dayChange, dayChangePercent, topP
                 </CardHeader>
                 <CardContent>
                     <div className={`text-2xl font-bold tabular-nums ${isPositive ? "text-gain" : "text-loss"}`}>
-                        {isPositive ? "+" : ""}{dayChange.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}
+                        {isPositive ? "+" : ""}{formatCurrency(Math.abs(dayChange))}
                     </div>
                     <div className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold mt-1 ${isPositive ? "bg-success/10 text-gain" : "bg-destructive/10 text-loss"
                         }`}>

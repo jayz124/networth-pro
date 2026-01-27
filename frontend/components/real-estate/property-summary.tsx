@@ -2,6 +2,7 @@
 
 import { Building2, DollarSign, TrendingUp, CreditCard } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useSettings } from "@/lib/settings-context"
 
 type PropertySummaryProps = {
     totalValue: number
@@ -12,14 +13,7 @@ type PropertySummaryProps = {
 }
 
 export function PropertySummary({ totalValue, totalEquity, totalMortgage, monthlyPayments, propertyCount = 0 }: PropertySummaryProps) {
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(value)
-    }
+    const { formatCurrency } = useSettings()
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

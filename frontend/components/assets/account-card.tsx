@@ -24,6 +24,7 @@ import {
 import { Account, deleteAccount } from "@/lib/api"
 import { AccountForm } from "@/components/assets/account-form"
 import { UpdateBalanceDialog } from "@/components/assets/update-balance-dialog"
+import { useSettings } from "@/lib/settings-context"
 
 type AccountCardProps = {
     account: Account
@@ -65,15 +66,7 @@ export function AccountCard({ account, onUpdate }: AccountCardProps) {
     const [showEditDialog, setShowEditDialog] = React.useState(false)
     const [showBalanceDialog, setShowBalanceDialog] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
-
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(value)
-    }
+    const { formatCurrency } = useSettings()
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'Never'

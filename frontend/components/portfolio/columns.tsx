@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, Bitcoin, Building, Coins, LineChart, Wallet, TrendingUp, TrendingDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { HoldingActions } from "@/components/portfolio/holding-actions"
+import { CurrencyDisplay } from "@/components/currency-display"
 
 export type Holding = {
     id: number
@@ -100,7 +101,7 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
             if (!price) return <span className="text-muted-foreground">-</span>
             return (
                 <div className="font-mono text-sm tabular-nums">
-                    ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <CurrencyDisplay value={price} />
                 </div>
             )
         },
@@ -113,7 +114,7 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
             if (!cost) return <span className="text-muted-foreground">-</span>
             return (
                 <div className="font-mono text-sm tabular-nums">
-                    ${cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <CurrencyDisplay value={cost} />
                 </div>
             )
         },
@@ -136,7 +137,7 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
             const val = row.original.current_value || 0
             return (
                 <div className="font-mono font-semibold tabular-nums">
-                    ${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <CurrencyDisplay value={val} />
                 </div>
             )
         },
@@ -155,7 +156,7 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
                     ) : (
                         <TrendingDown className="h-3.5 w-3.5" />
                     )}
-                    {isPositive ? "+" : ""}${Math.abs(gain).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <CurrencyDisplay value={Math.abs(gain)} showSign={isPositive} />
                 </div>
             )
         }

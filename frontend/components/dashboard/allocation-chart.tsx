@@ -2,6 +2,7 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { useSettings } from "@/lib/settings-context"
 
 interface AssetData {
     name: string
@@ -12,6 +13,7 @@ interface AssetData {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 export function AllocationChart({ assets }: { assets: AssetData[] }) {
+    const { formatCurrency } = useSettings()
     // Filter out tiny balances for cleaner chart
     const data = assets
         .filter(a => a.balance > 0)
@@ -57,7 +59,7 @@ export function AllocationChart({ assets }: { assets: AssetData[] }) {
                                 ))}
                             </Pie>
                             <Tooltip
-                                formatter={(value: any) => [`$${value.toLocaleString()}`, "Value"]}
+                                formatter={(value: any) => [formatCurrency(value), "Value"]}
                                 contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
                             />
                             <Legend verticalAlign="bottom" height={36} iconType="circle" />

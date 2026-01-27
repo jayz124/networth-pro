@@ -2,6 +2,7 @@ import { fetchNetWorth, fetchHistory } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DollarSign, CreditCard, Wallet, TrendingUp, ArrowDownRight } from "lucide-react";
 import { NetWorthChart } from "@/components/dashboard/net-worth-chart";
+import { CurrencyDisplay } from "@/components/currency-display";
 
 export default async function Home() {
   // Parallel data fetching
@@ -40,7 +41,7 @@ export default async function Home() {
           </CardHeader>
           <CardContent className="relative">
             <div className="text-3xl font-bold tabular-nums tracking-tight">
-              ${netWorth.toLocaleString()}
+              <CurrencyDisplay value={netWorth} />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Total wealth across all accounts
@@ -58,7 +59,7 @@ export default async function Home() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums text-gain">
-              ${assets.toLocaleString()}
+              <CurrencyDisplay value={assets} />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {assetList.length} active account{assetList.length !== 1 ? 's' : ''}
@@ -76,7 +77,7 @@ export default async function Home() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums text-loss">
-              ${liabilities.toLocaleString()}
+              <CurrencyDisplay value={liabilities} />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {liabilityList.length} outstanding debt{liabilityList.length !== 1 ? 's' : ''}
@@ -113,7 +114,7 @@ export default async function Home() {
                     <p className="text-xs text-muted-foreground">{asset.currency}</p>
                   </div>
                   <div className="ml-auto font-semibold tabular-nums text-gain">
-                    +${asset.balance.toLocaleString()}
+                    <CurrencyDisplay value={asset.balance} showSign />
                   </div>
                 </div>
               ))}

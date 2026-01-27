@@ -2,6 +2,7 @@
 
 import { CreditCard, AlertTriangle, TrendingDown, Calendar } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useSettings } from "@/lib/settings-context"
 
 type LiabilitySummaryProps = {
     totalDebt: number
@@ -12,14 +13,7 @@ type LiabilitySummaryProps = {
 }
 
 export function LiabilitySummary({ totalDebt, creditCardDebt, loansDebt, otherDebt, liabilityCount = 0 }: LiabilitySummaryProps) {
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(value)
-    }
+    const { formatCurrency } = useSettings()
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
