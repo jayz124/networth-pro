@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, LineChart, Wallet, Settings, Building2, CreditCard } from "lucide-react"
+import { Home, LineChart, Wallet, Settings, Building2, CreditCard, Umbrella } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -12,6 +12,7 @@ const navigation = [
     { name: "Assets", href: "/assets", icon: Wallet },
     { name: "Liabilities", href: "/liabilities", icon: CreditCard },
     { name: "Real Estate", href: "/real-estate", icon: Building2 },
+    { name: "Retirement", href: "/retirement", icon: Umbrella },
     { name: "Settings", href: "/settings", icon: Settings },
 ]
 

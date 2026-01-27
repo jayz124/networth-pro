@@ -84,6 +84,31 @@ export interface Mortgage {
     is_active: boolean;
 }
 
+export interface Account {
+    id: number;
+    name: string;
+    institution?: string;
+    type: string;  // checking, savings, investment, cash
+    currency: string;
+    tags?: string;
+    current_balance: number;
+    last_updated?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Liability {
+    id: number;
+    name: string;
+    category?: string;  // credit_card, student_loan, auto_loan, personal_loan, other
+    currency: string;
+    tags?: string;
+    current_balance: number;
+    last_updated?: string;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface NetWorth {
     net_worth: number;
     total_assets: number;
@@ -520,6 +545,228 @@ export async function fetchRealEstateSummary() {
 
         if (!res.ok) {
             return null;
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+// Account APIs
+export async function fetchAccounts(): Promise<Account[]> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/accounts`, {
+            cache: 'no-store'
+        });
+
+        if (!res.ok) {
+            return [];
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+}
+
+export async function createAccount(data: {
+    name: string;
+    institution?: string;
+    type: string;
+    currency?: string;
+    current_balance?: number;
+    tags?: string;
+}): Promise<Account | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/accounts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        if (!res.ok) {
+            throw new Error('Failed to create account');
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function updateAccount(
+    accountId: number,
+    data: {
+        name?: string;
+        institution?: string;
+        type?: string;
+        currency?: string;
+        tags?: string;
+    }
+): Promise<Account | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/accounts/${accountId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        if (!res.ok) {
+            throw new Error('Failed to update account');
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function deleteAccount(accountId: number): Promise<boolean> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/accounts/${accountId}`, {
+            method: 'DELETE',
+        });
+
+        return res.ok;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
+export async function updateAccountBalance(
+    accountId: number,
+    amount: number
+): Promise<Account | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/accounts/${accountId}/balance`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount }),
+        });
+
+        if (!res.ok) {
+            throw new Error('Failed to update balance');
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+// Liability APIs
+export async function fetchLiabilities(): Promise<Liability[]> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/liabilities`, {
+            cache: 'no-store'
+        });
+
+        if (!res.ok) {
+            return [];
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+}
+
+export async function createLiability(data: {
+    name: string;
+    category?: string;
+    currency?: string;
+    current_balance?: number;
+    tags?: string;
+}): Promise<Liability | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/liabilities`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        if (!res.ok) {
+            throw new Error('Failed to create liability');
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function updateLiability(
+    liabilityId: number,
+    data: {
+        name?: string;
+        category?: string;
+        currency?: string;
+        tags?: string;
+    }
+): Promise<Liability | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/liabilities/${liabilityId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        if (!res.ok) {
+            throw new Error('Failed to update liability');
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function deleteLiability(liabilityId: number): Promise<boolean> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/liabilities/${liabilityId}`, {
+            method: 'DELETE',
+        });
+
+        return res.ok;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
+export async function updateLiabilityBalance(
+    liabilityId: number,
+    amount: number
+): Promise<Liability | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/liabilities/${liabilityId}/balance`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount }),
+        });
+
+        if (!res.ok) {
+            throw new Error('Failed to update balance');
         }
 
         return res.json();
