@@ -28,12 +28,23 @@
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
 
+  /* Custom semantic colors */
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-gold: hsl(var(--gold));
+  --color-gold-foreground: hsl(var(--gold-foreground));
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.5s ease-out;
+  --animate-slide-up: slide-up 0.5s ease-out;
+  --animate-slide-up-fade: slide-up-fade 0.5s ease-out forwards;
 
   @keyframes accordion-down {
     from { height: 0; }
@@ -43,58 +54,206 @@
     from { height: var(--radix-accordion-content-height); }
     to { height: 0; }
   }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes slide-up-fade {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* Font family variables */
+  --font-sans: var(--font-satoshi), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
+/* ===== LIGHT THEME - Refined Slate ===== */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
+  /* Base - Warm off-white with subtle blue undertone */
+  --background: 220 20% 97%;
+  --foreground: 222 47% 11%;
+
+  /* Cards - Pure white, elevated */
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
+  --card-foreground: 222 47% 11%;
+
+  /* Popover - Same as card */
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 240 5.9% 10%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 240 10% 3.9%;
-  --radius: 0.5rem;
+  --popover-foreground: 222 47% 11%;
+
+  /* Primary - Deep navy */
+  --primary: 222 47% 15%;
+  --primary-foreground: 210 40% 98%;
+
+  /* Secondary - Light slate */
+  --secondary: 220 14% 92%;
+  --secondary-foreground: 222 47% 15%;
+
+  /* Muted - Subtle gray */
+  --muted: 220 14% 94%;
+  --muted-foreground: 220 9% 46%;
+
+  /* Accent - Warm gold */
+  --accent: 38 92% 50%;
+  --accent-foreground: 222 47% 11%;
+
+  /* Destructive - Soft coral */
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Borders & inputs */
+  --border: 220 13% 88%;
+  --input: 220 13% 88%;
+  --ring: 222 47% 15%;
+
+  /* Semantic - Finance colors */
+  --success: 158 64% 40%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 222 47% 11%;
+  --gold: 38 92% 50%;
+  --gold-foreground: 222 47% 11%;
+
+  --radius: 0.625rem;
 }
 
+/* ===== DARK THEME - Midnight Finance ===== */
 .dark {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 240 5.9% 10%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
-  --ring: 240 4.9% 83.9%;
+  /* Base - Deep slate with warmth */
+  --background: 222 47% 6%;
+  --foreground: 210 40% 96%;
+
+  /* Cards - Slightly elevated, subtle transparency feel */
+  --card: 222 47% 9%;
+  --card-foreground: 210 40% 96%;
+
+  /* Popover - Elevated surface */
+  --popover: 222 47% 10%;
+  --popover-foreground: 210 40% 96%;
+
+  /* Primary - Soft white */
+  --primary: 210 40% 96%;
+  --primary-foreground: 222 47% 11%;
+
+  /* Secondary - Muted slate */
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 96%;
+
+  /* Muted - Subtle blue-gray */
+  --muted: 217 33% 14%;
+  --muted-foreground: 215 20% 55%;
+
+  /* Accent - Warm gold */
+  --accent: 38 92% 50%;
+  --accent-foreground: 222 47% 6%;
+
+  /* Destructive - Soft coral */
+  --destructive: 0 72% 63%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Borders & inputs */
+  --border: 217 33% 18%;
+  --input: 217 33% 18%;
+  --ring: 38 92% 50%;
+
+  /* Semantic - Finance colors */
+  --success: 158 64% 52%;
+  --success-foreground: 222 47% 6%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 222 47% 6%;
+  --gold: 38 92% 50%;
+  --gold-foreground: 222 47% 6%;
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Atmospheric background gradient - uses CSS variables that adapt to theme */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: -1;
+    background:
+      radial-gradient(ellipse at 0% 0%, hsl(38 92% 50% / 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 100% 100%, hsl(158 64% 52% / 0.03) 0%, transparent 50%);
+  }
+}
+
+@layer utilities {
+  /* Staggered animation delays for cards */
+  .animate-stagger-1 { animation-delay: 0.1s; }
+  .animate-stagger-2 { animation-delay: 0.2s; }
+  .animate-stagger-3 { animation-delay: 0.3s; }
+  .animate-stagger-4 { animation-delay: 0.4s; }
+  .animate-stagger-5 { animation-delay: 0.5s; }
+
+  /* Financial number styling */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Gain/Loss colors */
+  .text-gain {
+    color: hsl(var(--success));
+  }
+  .text-loss {
+    color: hsl(var(--destructive));
+  }
+
+  /* Gold accent text */
+  .text-gold {
+    color: hsl(var(--gold));
+  }
+
+  /* Glassmorphism card effect */
+  .glass {
+    background: hsl(var(--card) / 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+
+  /* Gradient border effect */
+  .gradient-border {
+    position: relative;
+    background: hsl(var(--card));
+    border-radius: var(--radius);
+  }
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--success)));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  /* Subtle glow effect */
+  .glow {
+    box-shadow: 0 0 20px hsl(var(--accent) / 0.15);
+  }
+
+  .glow-success {
+    box-shadow: 0 0 20px hsl(var(--success) / 0.15);
   }
 }

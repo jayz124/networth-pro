@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Building2, MapPin, MoreHorizontal, Pencil, Trash2, Plus } from "lucide-react"
+import { Building2, MapPin, MoreHorizontal, Pencil, Trash2, Plus, TrendingUp, TrendingDown, Home, Building, TreePine, Warehouse } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -28,6 +28,21 @@ import { PropertyForm } from "@/components/real-estate/property-form"
 type PropertyCardProps = {
     property: Property
     onUpdate: () => void
+}
+
+const getPropertyIcon = (type: string) => {
+    switch (type.toLowerCase()) {
+        case 'residential':
+            return <Home className="h-5 w-5 text-success" />
+        case 'commercial':
+            return <Building className="h-5 w-5 text-blue-500" />
+        case 'land':
+            return <TreePine className="h-5 w-5 text-amber-500" />
+        case 'rental':
+            return <Warehouse className="h-5 w-5 text-violet-500" />
+        default:
+            return <Building2 className="h-5 w-5 text-success" />
+    }
 }
 
 export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
@@ -57,26 +72,27 @@ export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
 
     const appreciationPercent = property.appreciation_percent || 0
     const isPositiveAppreciation = appreciationPercent >= 0
+    const equity = property.equity || property.current_value
 
     return (
         <>
-            <Card>
-                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+            <Card variant="elevated" className="group">
+                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
                     <div className="flex items-start gap-3">
-                        <div className="p-2 bg-emerald-100 rounded-lg">
-                            <Building2 className="h-5 w-5 text-emerald-600" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 transition-colors group-hover:bg-success/20">
+                            {getPropertyIcon(property.property_type)}
                         </div>
-                        <div>
-                            <CardTitle className="text-lg">{property.name}</CardTitle>
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                        <div className="space-y-1">
+                            <CardTitle className="text-base leading-tight">{property.name}</CardTitle>
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <MapPin className="h-3 w-3" />
-                                {property.address}
+                                <span className="truncate max-w-[180px]">{property.address}</span>
                             </div>
                         </div>
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <MoreHorizontal className="h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
@@ -92,7 +108,7 @@ export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 onClick={() => setShowDeleteDialog(true)}
-                                className="text-red-600"
+                                className="text-destructive focus:text-destructive"
                             >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
@@ -101,50 +117,70 @@ export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
                     </DropdownMenu>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground capitalize">{property.property_type}</span>
-                        <span className={`font-medium ${isPositiveAppreciation ? 'text-emerald-500' : 'text-red-500'}`}>
-                            {isPositiveAppreciation ? '+' : ''}{appreciationPercent.toFixed(1)}%
+                    {/* Type and Appreciation */}
+                    <div className="flex items-center justify-between">
+                        <span className="inline-flex items-center rounded-md bg-muted/50 px-2 py-1 text-xs font-medium capitalize">
+                            {property.property_type}
                         </span>
+                        <div className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${isPositiveAppreciation
+                                ? "bg-success/10 text-gain"
+                                : "bg-destructive/10 text-loss"
+                            }`}>
+                            {isPositiveAppreciation ? (
+                                <TrendingUp className="h-3 w-3" />
+                            ) : (
+                                <TrendingDown className="h-3 w-3" />
+                            )}
+                            {isPositiveAppreciation ? '+' : ''}{appreciationPercent.toFixed(1)}%
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Value and Equity Grid */}
+                    <div className="grid grid-cols-2 gap-4 py-2">
                         <div>
-                            <p className="text-xs text-muted-foreground">Current Value</p>
-                            <p className="text-lg font-bold">{formatCurrency(property.current_value)}</p>
+                            <p className="text-xs text-muted-foreground mb-1">Current Value</p>
+                            <p className="text-xl font-bold tabular-nums">{formatCurrency(property.current_value)}</p>
                         </div>
                         <div>
-                            <p className="text-xs text-muted-foreground">Your Equity</p>
-                            <p className="text-lg font-bold text-emerald-500">
-                                {formatCurrency(property.equity || property.current_value)}
+                            <p className="text-xs text-muted-foreground mb-1">Your Equity</p>
+                            <p className="text-xl font-bold tabular-nums text-gain">
+                                {formatCurrency(equity)}
                             </p>
                         </div>
                     </div>
 
+                    {/* Mortgage Info */}
                     {property.total_mortgage_balance && property.total_mortgage_balance > 0 && (
-                        <div className="pt-3 border-t">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Mortgage Balance</span>
-                                <span className="font-medium">{formatCurrency(property.total_mortgage_balance)}</span>
+                        <div className="pt-3 border-t border-border/50 space-y-2">
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-muted-foreground">Mortgage Balance</span>
+                                <span className="text-sm font-medium tabular-nums text-loss">
+                                    {formatCurrency(property.total_mortgage_balance)}
+                                </span>
                             </div>
                             {property.monthly_payments && property.monthly_payments > 0 && (
-                                <div className="flex justify-between text-sm mt-1">
-                                    <span className="text-muted-foreground">Monthly Payment</span>
-                                    <span className="font-medium">{formatCurrency(property.monthly_payments)}</span>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs text-muted-foreground">Monthly Payment</span>
+                                    <span className="text-sm font-medium tabular-nums">
+                                        {formatCurrency(property.monthly_payments)}
+                                    </span>
                                 </div>
                             )}
                         </div>
                     )}
 
+                    {/* Mortgage Details */}
                     {property.mortgages && property.mortgages.length > 0 && (
-                        <div className="pt-3 border-t">
+                        <div className="pt-3 border-t border-border/50">
                             <p className="text-xs text-muted-foreground mb-2">Mortgages</p>
-                            {property.mortgages.map((mortgage) => (
-                                <div key={mortgage.id} className="flex justify-between text-sm py-1">
-                                    <span>{mortgage.lender || 'Mortgage'}</span>
-                                    <span className="text-muted-foreground">{mortgage.interest_rate}% APR</span>
-                                </div>
-                            ))}
+                            <div className="space-y-1.5">
+                                {property.mortgages.map((mortgage) => (
+                                    <div key={mortgage.id} className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">{mortgage.lender || 'Mortgage'}</span>
+                                        <span className="font-medium tabular-nums">{mortgage.interest_rate}% APR</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </CardContent>
@@ -180,7 +216,7 @@ export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
-                            className="bg-red-600 hover:bg-red-700"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             disabled={isDeleting}
                         >
                             {isDeleting ? "Deleting..." : "Delete"}

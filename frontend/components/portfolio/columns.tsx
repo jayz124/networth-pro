@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, Bitcoin, Building, Coins, LineChart, Wallet } from "lucide-react"
+import { ArrowUpDown, Bitcoin, Building, Coins, LineChart, Wallet, TrendingUp, TrendingDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { HoldingActions } from "@/components/portfolio/holding-actions"
 
@@ -26,16 +26,16 @@ export type Holding = {
 const getAssetIcon = (type: string) => {
     switch (type.toLowerCase()) {
         case 'crypto':
-            return <Bitcoin className="mr-2 h-4 w-4 text-orange-500" />
+            return <Bitcoin className="h-4 w-4 text-amber-500" />
         case 'stock':
-            return <LineChart className="mr-2 h-4 w-4 text-blue-500" />
+            return <LineChart className="h-4 w-4 text-blue-500" />
         case 'etf':
-            return <Coins className="mr-2 h-4 w-4 text-purple-500" />
+            return <Coins className="h-4 w-4 text-violet-500" />
         case 'real estate':
         case 'reit':
-            return <Building className="mr-2 h-4 w-4 text-emerald-500" />
+            return <Building className="h-4 w-4 text-success" />
         default:
-            return <Wallet className="mr-2 h-4 w-4 text-gray-500" />
+            return <Wallet className="h-4 w-4 text-muted-foreground" />
     }
 }
 
@@ -47,20 +47,25 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
                 <Button
                     variant="ghost"
                     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                    className="hover:bg-transparent hover:text-foreground -ml-4"
                 >
                     Asset
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    <ArrowUpDown className="ml-2 h-3 w-3" />
                 </Button>
             )
         },
         cell: ({ row }) => {
             const icon = getAssetIcon(row.getValue("asset_type"))
             return (
-                <div className="flex items-center">
-                    {icon}
+                <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/50">
+                        {icon}
+                    </div>
                     <div className="flex flex-col">
-                        <span className="font-bold">{row.getValue("ticker")}</span>
-                        <span className="text-xs text-muted-foreground">{row.original.name || row.original.asset_type}</span>
+                        <span className="font-semibold">{row.getValue("ticker")}</span>
+                        <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                            {row.original.name || row.original.asset_type}
+                        </span>
                     </div>
                 </div>
             )
@@ -69,14 +74,22 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
     {
         accessorKey: "asset_type",
         header: "Type",
-        cell: ({ row }) => <div className="capitalize">{row.getValue("asset_type")}</div>
+        cell: ({ row }) => (
+            <span className="inline-flex items-center rounded-md bg-muted/50 px-2 py-1 text-xs font-medium capitalize">
+                {row.getValue("asset_type")}
+            </span>
+        )
     },
     {
         accessorKey: "quantity",
         header: "Quantity",
         cell: ({ row }) => {
             const qty = parseFloat(row.getValue("quantity"))
-            return <div className="font-medium">{qty.toLocaleString(undefined, { maximumFractionDigits: 4 })}</div>
+            return (
+                <div className="font-mono text-sm tabular-nums">
+                    {qty.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                </div>
+            )
         },
     },
     {
@@ -84,8 +97,12 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
         header: "Avg Price",
         cell: ({ row }) => {
             const price = row.original.purchase_price
-            if (!price) return <div className="text-muted-foreground">-</div>
-            return <div>${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            if (!price) return <span className="text-muted-foreground">-</span>
+            return (
+                <div className="font-mono text-sm tabular-nums">
+                    ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+            )
         },
     },
     {
@@ -93,8 +110,12 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
         header: "Cost Basis",
         cell: ({ row }) => {
             const cost = row.original.cost_basis
-            if (!cost) return <div className="text-muted-foreground">-</div>
-            return <div>${cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            if (!cost) return <span className="text-muted-foreground">-</span>
+            return (
+                <div className="font-mono text-sm tabular-nums">
+                    ${cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+            )
         },
     },
     {
@@ -104,15 +125,20 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
                 <Button
                     variant="ghost"
                     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                    className="hover:bg-transparent hover:text-foreground -ml-4"
                 >
                     Value
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    <ArrowUpDown className="ml-2 h-3 w-3" />
                 </Button>
             )
         },
         cell: ({ row }) => {
             const val = row.original.current_value || 0
-            return <div className="font-bold">${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            return (
+                <div className="font-mono font-semibold tabular-nums">
+                    ${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+            )
         },
     },
     {
@@ -120,11 +146,16 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
         header: "Unrealized P&L",
         cell: ({ row }) => {
             const gain = row.original.unrealized_gain
-            if (gain === undefined || gain === null) return <div className="text-muted-foreground">-</div>
+            if (gain === undefined || gain === null) return <span className="text-muted-foreground">-</span>
             const isPositive = gain >= 0
             return (
-                <div className={`font-medium ${isPositive ? "text-emerald-500" : "text-red-500"}`}>
-                    {isPositive ? "+" : ""}{gain.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}
+                <div className={`flex items-center gap-1.5 font-mono font-medium tabular-nums ${isPositive ? "text-gain" : "text-loss"}`}>
+                    {isPositive ? (
+                        <TrendingUp className="h-3.5 w-3.5" />
+                    ) : (
+                        <TrendingDown className="h-3.5 w-3.5" />
+                    )}
+                    {isPositive ? "+" : ""}${Math.abs(gain).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
             )
         }
@@ -134,10 +165,13 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
         header: "P&L %",
         cell: ({ row }) => {
             const percent = row.original.gain_percent
-            if (percent === undefined || percent === null) return <div className="text-muted-foreground">-</div>
+            if (percent === undefined || percent === null) return <span className="text-muted-foreground">-</span>
             const isPositive = percent >= 0
             return (
-                <div className={`font-medium ${isPositive ? "text-emerald-500" : "text-red-500"}`}>
+                <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${isPositive
+                        ? "bg-success/10 text-gain"
+                        : "bg-destructive/10 text-loss"
+                    }`}>
                     {isPositive ? "+" : ""}{percent.toFixed(2)}%
                 </div>
             )
@@ -153,4 +187,4 @@ export const createColumns = (onUpdate: () => void): ColumnDef<Holding>[] => [
 ]
 
 // Default columns for backward compatibility (without actions)
-export const columns: ColumnDef<Holding>[] = createColumns(() => {})
+export const columns: ColumnDef<Holding>[] = createColumns(() => { })

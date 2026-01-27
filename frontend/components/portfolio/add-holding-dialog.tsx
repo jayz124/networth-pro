@@ -28,9 +28,10 @@ type AddHoldingDialogProps = {
     portfolios: Portfolio[]
     selectedPortfolioId?: number
     onAdded: () => void
+    trigger?: React.ReactNode
 }
 
-export function AddHoldingDialog({ portfolios, selectedPortfolioId, onAdded }: AddHoldingDialogProps) {
+export function AddHoldingDialog({ portfolios, selectedPortfolioId, onAdded, trigger }: AddHoldingDialogProps) {
     const [open, setOpen] = React.useState(false)
     const [isLoading, setIsLoading] = React.useState(false)
 
@@ -85,10 +86,12 @@ export function AddHoldingDialog({ portfolios, selectedPortfolioId, onAdded }: A
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Holding
-                </Button>
+                {trigger || (
+                    <Button>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Holding
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>

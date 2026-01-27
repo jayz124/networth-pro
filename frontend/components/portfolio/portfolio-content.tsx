@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { RefreshCcw } from "lucide-react"
+import { RefreshCcw, Briefcase, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { PortfolioSelector } from "@/components/portfolio/portfolio-selector"
 import { PortfolioSummary } from "@/components/portfolio/portfolio-summary"
 import { DataTable } from "@/components/portfolio/data-table"
@@ -80,7 +81,8 @@ export function PortfolioContent({ initialHoldings, initialPortfolios = [] }: Po
             totalValue,
             dayChange: totalGain,
             dayChangePercent,
-            topPerformer
+            topPerformer,
+            holdingsCount: filteredHoldings.length
         }
     }, [filteredHoldings])
 
@@ -92,20 +94,28 @@ export function PortfolioContent({ initialHoldings, initialPortfolios = [] }: Po
 
     return (
         <div className="space-y-8">
+            {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
+                <div>
                     <h2 className="text-3xl font-bold tracking-tight">Portfolio</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Track and manage your investments</p>
+                </div>
+                <div className="flex items-center gap-3">
                     <PortfolioSelector
                         portfolios={portfolios}
                         selectedPortfolio={selectedPortfolio}
                         onSelect={setSelectedPortfolio}
                         onPortfolioCreated={handlePortfolioCreated}
                     />
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
-                        <RefreshCcw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                        Refresh Prices
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        className="gap-2"
+                    >
+                        <RefreshCcw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                        <span className="hidden sm:inline">Refresh</span>
                     </Button>
                     <AddHoldingDialog
                         portfolios={portfolios}
@@ -115,27 +125,56 @@ export function PortfolioContent({ initialHoldings, initialPortfolios = [] }: Po
                 </div>
             </div>
 
+            {/* Summary Cards */}
             <PortfolioSummary
                 totalValue={metrics.totalValue}
                 dayChange={metrics.dayChange}
                 dayChangePercent={metrics.dayChangePercent}
                 topPerformer={metrics.topPerformer}
+                holdingsCount={metrics.holdingsCount}
             />
 
-            <div className="bg-card text-card-foreground rounded-xl border shadow p-6">
-                <div className="mb-4">
-                    <h3 className="text-lg font-medium">Holdings</h3>
-                    <p className="text-sm text-muted-foreground">Manage your investment positions across all classes.</p>
-                </div>
-                {filteredHoldings.length > 0 ? (
-                    <DataTable columns={columns} data={filteredHoldings} />
-                ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                        <p className="text-lg">No holdings yet</p>
-                        <p className="text-sm mt-2">Add your first holding to start tracking your portfolio.</p>
+            {/* Holdings Table */}
+            <Card className="opacity-0 animate-[slide-up-fade_0.5s_ease-out_0.5s_forwards]">
+                <CardHeader className="border-b border-border/50">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle>Holdings</CardTitle>
+                            <CardDescription>
+                                Manage your investment positions across all asset classes
+                            </CardDescription>
+                        </div>
                     </div>
-                )}
-            </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                    {filteredHoldings.length > 0 ? (
+                        <div className="p-6">
+                            <DataTable columns={columns} data={filteredHoldings} />
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
+                                <Briefcase className="h-8 w-8 text-muted-foreground/50" />
+                            </div>
+                            <h3 className="text-lg font-medium">No holdings yet</h3>
+                            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                                Add your first investment to start tracking your portfolio performance
+                            </p>
+                            <AddHoldingDialog
+                                portfolios={portfolios}
+                                selectedPortfolioId={selectedPortfolioId}
+                                onAdded={handleHoldingAdded}
+                                trigger={
+                                    <Button variant="accent" className="mt-6 gap-2">
+                                        <Plus className="h-4 w-4" />
+                                        Add First Holding
+                                    </Button>
+                                }
+                            />
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </div>
     )
 }
