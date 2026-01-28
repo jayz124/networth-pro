@@ -100,7 +100,7 @@ export function CashFlowExplorer({ data, retirementAge }: CashFlowExplorerProps)
                             {inflows.map((item, idx) => (
                                 <div key={idx} className="flex justify-between items-center p-2 bg-emerald-500/10 rounded">
                                     <span className="text-sm">{item.label}</span>
-                                    <span className="font-mono text-sm font-medium text-emerald-600">
+                                    <span className="font-mono text-sm font-medium text-emerald-500">
                                         +{formatCurrency(item.value)}
                                     </span>
                                 </div>
@@ -111,7 +111,7 @@ export function CashFlowExplorer({ data, retirementAge }: CashFlowExplorerProps)
                         </div>
                         <div className="flex justify-between items-center p-2 bg-emerald-500/20 rounded font-semibold">
                             <span className="text-sm">Total Inflow</span>
-                            <span className="font-mono text-sm text-emerald-600">
+                            <span className="font-mono text-sm text-emerald-500">
                                 {formatCurrency(totalInflow)}
                             </span>
                         </div>
@@ -124,7 +124,7 @@ export function CashFlowExplorer({ data, retirementAge }: CashFlowExplorerProps)
                             {outflows.map((item, idx) => (
                                 <div key={idx} className="flex justify-between items-center p-2 bg-red-500/10 rounded">
                                     <span className="text-sm">{item.label}</span>
-                                    <span className="font-mono text-sm font-medium text-red-600">
+                                    <span className="font-mono text-sm font-medium text-red-500">
                                         -{formatCurrency(item.value)}
                                     </span>
                                 </div>
@@ -132,7 +132,7 @@ export function CashFlowExplorer({ data, retirementAge }: CashFlowExplorerProps)
                         </div>
                         <div className="flex justify-between items-center p-2 bg-red-500/20 rounded font-semibold">
                             <span className="text-sm">Total Outflow</span>
-                            <span className="font-mono text-sm text-red-600">
+                            <span className="font-mono text-sm text-red-500">
                                 {formatCurrency(totalOutflow)}
                             </span>
                         </div>

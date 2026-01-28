@@ -12,6 +12,54 @@ type RetirementChartProps = {
     retirementAge: number
 }
 
+// Custom tooltip component for dark mode support
+const CustomTooltip = ({ active, payload, label, formatter }: any) => {
+    if (!active || !payload || !payload.length) return null
+
+    return (
+        <div className="bg-card border border-border rounded-lg shadow-lg p-3 min-w-[160px]">
+            <p className="text-sm font-semibold text-foreground mb-2">Age {label}</p>
+            <div className="space-y-1.5">
+                {payload.map((entry: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                            <div
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: entry.color }}
+                            />
+                            <span className="text-xs text-muted-foreground">{entry.name}</span>
+                        </div>
+                        <span className="text-xs font-medium font-mono text-foreground">
+                            {formatter ? formatter(entry.value) : entry.value}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+// Custom legend component for better styling
+const CustomLegend = ({ payload }: any) => {
+    if (!payload) return null
+
+    return (
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 pt-4 px-4">
+            {payload.map((entry: any, index: number) => (
+                <div key={index} className="flex items-center gap-2">
+                    <div
+                        className="w-3 h-3 rounded-sm"
+                        style={{ backgroundColor: entry.color }}
+                    />
+                    <span className="text-xs font-medium text-muted-foreground">
+                        {entry.value}
+                    </span>
+                </div>
+            ))}
+        </div>
+    )
+}
+
 export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
     const { formatCompactCurrency } = useSettings()
     const [viewMode, setViewMode] = useState<'aggregated' | 'detailed'>('aggregated')
@@ -65,32 +113,62 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart
                         data={chartData}
-                        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                        margin={{ top: 30, right: 30, left: 0, bottom: 10 }}
                     >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                        <defs>
+                            <linearGradient id="liabilitiesGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
+                            </linearGradient>
+                            <linearGradient id="realEstateGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.05} />
+                            </linearGradient>
+                            <linearGradient id="liquidAssetsGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
                         <XAxis
                             dataKey="age"
                             tickLine={false}
                             axisLine={false}
-                            tick={{ fill: '#6b7280', fontSize: 12 }}
+                            className="text-xs"
+                            tick={{ className: "fill-muted-foreground" }}
                             tickFormatter={(val) => `${val}`}
                             interval="preserveStartEnd"
                             minTickGap={30}
+                            dy={8}
                         />
                         <YAxis
                             tickLine={false}
                             axisLine={false}
-                            tick={{ fill: '#6b7280', fontSize: 12 }}
+                            className="text-xs"
+                            tick={{ className: "fill-muted-foreground" }}
                             tickFormatter={formatCompactCurrency}
-                            width={70}
+                            width={80}
+                            dx={-5}
                         />
                         <Tooltip
-                            contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
-                            formatter={(value: any, name?: string) => [formatCompactCurrency(value), name || '']}
-                            labelFormatter={(label) => `Age ${label}`}
+                            content={<CustomTooltip formatter={formatCompactCurrency} />}
+                            cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeDasharray: '4 4' }}
                         />
-                        <Legend />
-                        <ReferenceLine x={retirementAge} stroke="#10b981" strokeDasharray="3 3" label={{ value: "Retirement", position: "top", fill: "#10b981", fontSize: 12 }} />
+                        <Legend content={<CustomLegend />} />
+                        <ReferenceLine
+                            x={retirementAge}
+                            stroke="#10b981"
+                            strokeDasharray="5 5"
+                            strokeWidth={2}
+                            label={{
+                                value: "Retire",
+                                position: "insideTopRight",
+                                fill: "#10b981",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                dy: -15
+                            }}
+                        />
 
                         {viewMode === 'aggregated' ? (
                             <>
@@ -99,8 +177,8 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                                     dataKey="liabilities"
                                     stackId="1"
                                     stroke="#ef4444"
-                                    fill="#ef4444"
-                                    fillOpacity={0.3}
+                                    strokeWidth={1.5}
+                                    fill="url(#liabilitiesGradient)"
                                     name="Liabilities"
                                 />
                                 <Area
@@ -108,8 +186,8 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                                     dataKey="realEstate"
                                     stackId="2"
                                     stroke="#8b5cf6"
-                                    fill="#8b5cf6"
-                                    fillOpacity={0.3}
+                                    strokeWidth={1.5}
+                                    fill="url(#realEstateGradient)"
                                     name="Real Estate"
                                 />
                                 <Area
@@ -117,17 +195,18 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                                     dataKey="liquidAssets"
                                     stackId="2"
                                     stroke="#3b82f6"
-                                    fill="#3b82f6"
-                                    fillOpacity={0.3}
+                                    strokeWidth={1.5}
+                                    fill="url(#liquidAssetsGradient)"
                                     name="Liquid Assets"
                                 />
                                 <Line
                                     type="monotone"
                                     dataKey="netWorth"
                                     stroke="#10b981"
-                                    strokeWidth={3}
+                                    strokeWidth={2.5}
                                     dot={false}
                                     name="Net Worth"
+                                    style={{ filter: 'drop-shadow(0 0 3px rgba(16, 185, 129, 0.4))' }}
                                 />
                                 {runOutAge && (
                                     <Area
@@ -135,7 +214,7 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                                         dataKey="shortfall"
                                         stroke="#dc2626"
                                         fill="#dc2626"
-                                        fillOpacity={0.5}
+                                        fillOpacity={0.4}
                                         name="Shortfall"
                                     />
                                 )}
@@ -144,10 +223,11 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                             <Line
                                 type="monotone"
                                 dataKey="netWorth"
-                                stroke="#0ea5e9"
-                                strokeWidth={2}
+                                stroke="#10b981"
+                                strokeWidth={2.5}
                                 dot={false}
                                 name="Net Worth"
+                                style={{ filter: 'drop-shadow(0 0 3px rgba(16, 185, 129, 0.4))' }}
                             />
                         )}
                     </ComposedChart>
@@ -177,18 +257,18 @@ export function AssetBreakdownChart({ data }: { data: ProjectionPoint[] }) {
             </CardHeader>
             <CardContent className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} />
-                        <YAxis tickLine={false} axisLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} tickFormatter={formatCompactCurrency} width={60} />
-                        <Tooltip formatter={(value: any) => formatCompactCurrency(value)} labelFormatter={(label) => `Age ${label}`} />
-                        <Legend />
-                        <Area type="monotone" dataKey="primaryHome" stackId="1" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.6} name="Primary Home" />
-                        <Area type="monotone" dataKey="investmentProperty" stackId="1" stroke="#a855f7" fill="#a855f7" fillOpacity={0.6} name="Investment Property" />
-                        <Area type="monotone" dataKey="otherAssets" stackId="1" stroke="#c084fc" fill="#c084fc" fillOpacity={0.6} name="Other Assets" />
-                        <Area type="monotone" dataKey="taxable" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Taxable" />
-                        <Area type="monotone" dataKey="deferred" stackId="1" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.6} name="Tax-Deferred" />
-                        <Area type="monotone" dataKey="roth" stackId="1" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.6} name="Tax-Free (Roth)" />
+                    <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
+                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} dy={8} />
+                        <YAxis tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} tickFormatter={formatCompactCurrency} width={70} dx={-5} />
+                        <Tooltip content={<CustomTooltip formatter={formatCompactCurrency} />} />
+                        <Legend content={<CustomLegend />} />
+                        <Area type="monotone" dataKey="primaryHome" stackId="1" stroke="#8b5cf6" strokeWidth={1.5} fill="#8b5cf6" fillOpacity={0.5} name="Primary Home" />
+                        <Area type="monotone" dataKey="investmentProperty" stackId="1" stroke="#a855f7" strokeWidth={1.5} fill="#a855f7" fillOpacity={0.5} name="Investment Property" />
+                        <Area type="monotone" dataKey="otherAssets" stackId="1" stroke="#c084fc" strokeWidth={1.5} fill="#c084fc" fillOpacity={0.5} name="Other Assets" />
+                        <Area type="monotone" dataKey="taxable" stackId="1" stroke="#3b82f6" strokeWidth={1.5} fill="#3b82f6" fillOpacity={0.5} name="Taxable" />
+                        <Area type="monotone" dataKey="deferred" stackId="1" stroke="#0ea5e9" strokeWidth={1.5} fill="#0ea5e9" fillOpacity={0.5} name="Tax-Deferred" />
+                        <Area type="monotone" dataKey="roth" stackId="1" stroke="#06b6d4" strokeWidth={1.5} fill="#06b6d4" fillOpacity={0.5} name="Roth" />
                     </AreaChart>
                 </ResponsiveContainer>
             </CardContent>
@@ -215,6 +295,8 @@ export function AssetAllocationChart({ data }: { data: ProjectionPoint[] }) {
         }
     })
 
+    const formatValue = (value: number) => viewMode === 'values' ? formatCompactCurrency(value) : `${value.toFixed(1)}%`
+
     return (
         <Card className="h-[400px] flex flex-col">
             <CardHeader className="pb-2">
@@ -232,24 +314,22 @@ export function AssetAllocationChart({ data }: { data: ProjectionPoint[] }) {
             </CardHeader>
             <CardContent className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} />
+                    <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
+                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} dy={8} />
                         <YAxis
                             tickLine={false}
                             axisLine={false}
-                            tick={{ fill: '#6b7280', fontSize: 11 }}
+                            tick={{ className: "fill-muted-foreground text-[11px]" }}
                             tickFormatter={viewMode === 'values' ? formatCompactCurrency : (v) => `${v.toFixed(0)}%`}
-                            width={60}
+                            width={70}
+                            dx={-5}
                         />
-                        <Tooltip
-                            formatter={(value: any) => viewMode === 'values' ? formatCompactCurrency(value) : `${value.toFixed(1)}%`}
-                            labelFormatter={(label) => `Age ${label}`}
-                        />
-                        <Legend />
-                        <Area type="monotone" dataKey="stocks" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} name="Stocks" />
-                        <Area type="monotone" dataKey="bonds" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Bonds" />
-                        <Area type="monotone" dataKey="cash" stackId="1" stroke="#6b7280" fill="#6b7280" fillOpacity={0.6} name="Cash" />
+                        <Tooltip content={<CustomTooltip formatter={formatValue} />} />
+                        <Legend content={<CustomLegend />} />
+                        <Area type="monotone" dataKey="stocks" stackId="1" stroke="#10b981" strokeWidth={1.5} fill="#10b981" fillOpacity={0.5} name="Stocks" />
+                        <Area type="monotone" dataKey="bonds" stackId="1" stroke="#3b82f6" strokeWidth={1.5} fill="#3b82f6" fillOpacity={0.5} name="Bonds" />
+                        <Area type="monotone" dataKey="cash" stackId="1" stroke="#94a3b8" strokeWidth={1.5} fill="#94a3b8" fillOpacity={0.5} name="Cash" />
                     </AreaChart>
                 </ResponsiveContainer>
             </CardContent>
@@ -280,20 +360,20 @@ export function IncomeCompositionChart({ data, retirementAge }: { data: Projecti
             </CardHeader>
             <CardContent className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} />
-                        <YAxis tickLine={false} axisLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} tickFormatter={formatCompactCurrency} width={60} />
-                        <Tooltip formatter={(value: any) => formatCompactCurrency(value)} labelFormatter={(label) => `Age ${label}`} />
-                        <Legend />
-                        <ReferenceLine x={retirementAge} stroke="#10b981" strokeDasharray="3 3" />
-                        <Bar dataKey="savings" stackId="income" fill="#10b981" name="Savings (Inflow)" />
-                        <Bar dataKey="pension" stackId="income" fill="#8b5cf6" name="Pension" />
-                        <Bar dataKey="rental" stackId="income" fill="#f59e0b" name="Rental Income" />
-                        <Bar dataKey="dividends" stackId="income" fill="#3b82f6" name="Dividends" />
-                        <Bar dataKey="drawdown" stackId="income" fill="#06b6d4" name="Portfolio Drawdown" />
-                        <Bar dataKey="tax" stackId="expense" fill="#ef4444" name="Tax Paid" />
-                        <Bar dataKey="mortgage" stackId="expense" fill="#f97316" name="Mortgage Payment" />
+                    <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
+                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} dy={8} />
+                        <YAxis tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} tickFormatter={formatCompactCurrency} width={70} dx={-5} />
+                        <Tooltip content={<CustomTooltip formatter={formatCompactCurrency} />} />
+                        <Legend content={<CustomLegend />} />
+                        <ReferenceLine x={retirementAge} stroke="#10b981" strokeDasharray="5 5" strokeWidth={2} />
+                        <Bar dataKey="savings" stackId="income" fill="#10b981" radius={[2, 2, 0, 0]} name="Savings" />
+                        <Bar dataKey="pension" stackId="income" fill="#8b5cf6" radius={[2, 2, 0, 0]} name="Pension" />
+                        <Bar dataKey="rental" stackId="income" fill="#f59e0b" radius={[2, 2, 0, 0]} name="Rental" />
+                        <Bar dataKey="dividends" stackId="income" fill="#3b82f6" radius={[2, 2, 0, 0]} name="Dividends" />
+                        <Bar dataKey="drawdown" stackId="income" fill="#06b6d4" radius={[2, 2, 0, 0]} name="Drawdown" />
+                        <Bar dataKey="tax" stackId="expense" fill="#ef4444" radius={[0, 0, 2, 2]} name="Tax" />
+                        <Bar dataKey="mortgage" stackId="expense" fill="#f97316" radius={[0, 0, 2, 2]} name="Mortgage" />
                     </BarChart>
                 </ResponsiveContainer>
             </CardContent>
@@ -320,20 +400,20 @@ export function DebtServiceChart({ data }: { data: ProjectionPoint[] }) {
         <Card className="h-[400px] flex flex-col">
             <CardHeader className="pb-2">
                 <CardTitle className="text-base">Debt Service Analysis</CardTitle>
-                <CardDescription className="text-xs">Annual breakdown of Interest (Cost) vs Principal (Equity)</CardDescription>
+                <CardDescription className="text-xs text-muted-foreground">Annual breakdown of Interest (Cost) vs Principal (Equity)</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} />
-                        <YAxis tickLine={false} axisLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} tickFormatter={formatCompactCurrency} width={60} />
-                        <Tooltip formatter={(value: any) => formatCompactCurrency(value)} labelFormatter={(label) => `Age ${label}`} />
-                        <Legend />
-                        <Bar dataKey="mortgageInterest" stackId="mortgage" fill="#ef4444" name="Mortgage Interest (Cost)" />
-                        <Bar dataKey="mortgagePrincipal" stackId="mortgage" fill="#10b981" name="Mortgage Principal (Equity)" />
-                        <Bar dataKey="loanInterest" stackId="loan" fill="#f97316" name="Loan Interest (Cost)" />
-                        <Bar dataKey="loanPrincipal" stackId="loan" fill="#06b6d4" name="Loan Principal" />
+                    <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
+                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} dy={8} />
+                        <YAxis tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} tickFormatter={formatCompactCurrency} width={70} dx={-5} />
+                        <Tooltip content={<CustomTooltip formatter={formatCompactCurrency} />} />
+                        <Legend content={<CustomLegend />} />
+                        <Bar dataKey="mortgageInterest" stackId="mortgage" fill="#ef4444" radius={[2, 2, 0, 0]} name="Mortgage Interest" />
+                        <Bar dataKey="mortgagePrincipal" stackId="mortgage" fill="#10b981" radius={[2, 2, 0, 0]} name="Mortgage Principal" />
+                        <Bar dataKey="loanInterest" stackId="loan" fill="#f97316" radius={[2, 2, 0, 0]} name="Loan Interest" />
+                        <Bar dataKey="loanPrincipal" stackId="loan" fill="#06b6d4" radius={[2, 2, 0, 0]} name="Loan Principal" />
                     </BarChart>
                 </ResponsiveContainer>
             </CardContent>

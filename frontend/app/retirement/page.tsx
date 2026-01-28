@@ -1,8 +1,18 @@
 "use client"
 
 import * as React from "react"
-import { calculateProjection, DEFAULT_CONFIG, RetirementConfig } from "@/lib/retirement-logic"
+import {
+    calculateProjection,
+    DEFAULT_CONFIG,
+    RetirementConfig,
+    EssentialConfig,
+    ESSENTIAL_DEFAULT_CONFIG,
+    essentialToFullConfig,
+    fullToEssentialConfig
+} from "@/lib/retirement-logic"
 import { ConfigSidebar } from "@/components/retirement/config-sidebar"
+import { EssentialSidebar } from "@/components/retirement/essential-sidebar"
+import { ModeToggle } from "@/components/retirement/mode-toggle"
 import {
     RetirementChart,
     AssetBreakdownChart,
@@ -15,16 +25,106 @@ import { MonteCarloDialog } from "@/components/retirement/monte-carlo-dialog"
 import { CashFlowExplorer } from "@/components/retirement/cash-flow-explorer"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { RetirementModeProvider, useRetirementMode, RetirementMode } from "@/lib/retirement-mode-context"
+import { fetchAutoPopulateData, AutoPopulateData } from "@/lib/retirement-auto-populate"
 
-export default function RetirementPage() {
-    // State for configuration
-    const [config, setConfig] = React.useState<RetirementConfig>(DEFAULT_CONFIG)
+// Inner component that uses the mode context
+function RetirementPageContent() {
+    const { mode, setMode, isLoaded: modeLoaded } = useRetirementMode()
+
+    // State for configurations
+    const [proConfig, setProConfig] = React.useState<RetirementConfig>(DEFAULT_CONFIG)
+    const [essentialConfig, setEssentialConfig] = React.useState<EssentialConfig>(ESSENTIAL_DEFAULT_CONFIG)
     const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
 
-    // Calculate projection whenever config changes
+    // Sync state
+    const [isSyncing, setIsSyncing] = React.useState(false)
+    const [syncedFields, setSyncedFields] = React.useState({
+        investments: false,
+        realEstate: false,
+        debts: false,
+    })
+
+    // Track if we've done initial sync
+    const [hasInitialSync, setHasInitialSync] = React.useState(false)
+
+    // Calculate projection based on current mode
+    const projectionConfig = React.useMemo(() => {
+        if (mode === "essential") {
+            return essentialToFullConfig(essentialConfig)
+        }
+        return proConfig
+    }, [mode, essentialConfig, proConfig])
+
     const projectionData = React.useMemo(() => {
-        return calculateProjection(config)
-    }, [config])
+        return calculateProjection(projectionConfig)
+    }, [projectionConfig])
+
+    // Handle mode switching with config conversion
+    const handleModeChange = React.useCallback((newMode: RetirementMode) => {
+        if (newMode === mode) return
+
+        if (newMode === "essential") {
+            // Convert Pro config to Essential
+            const converted = fullToEssentialConfig(proConfig)
+            setEssentialConfig(converted)
+        } else {
+            // Convert Essential config to Pro
+            const converted = essentialToFullConfig(essentialConfig)
+            setProConfig(converted)
+        }
+
+        setMode(newMode)
+    }, [mode, proConfig, essentialConfig, setMode])
+
+    // Handle sync button click
+    const handleSync = React.useCallback(async () => {
+        setIsSyncing(true)
+        try {
+            const data = await fetchAutoPopulateData()
+
+            // Update Essential config with synced data
+            setEssentialConfig(prev => ({
+                ...prev,
+                totalStocks: data.totalStocks,
+                totalBonds: data.totalBonds,
+                totalCash: data.totalCash,
+                otherInvestments: data.otherInvestments,
+                primaryHomeValue: data.primaryHomeValue,
+                totalMortgageBalance: data.totalMortgageBalance,
+                mortgageInterestRate: data.mortgageInterestRate,
+                otherDebts: data.otherDebts,
+            }))
+
+            // Update synced fields indicators
+            setSyncedFields({
+                investments: data.hasPortfolioData || data.hasAccountsData,
+                realEstate: data.hasPropertiesData,
+                debts: data.hasLiabilitiesData,
+            })
+        } catch (error) {
+            console.error("Failed to sync data:", error)
+        } finally {
+            setIsSyncing(false)
+        }
+    }, [])
+
+    // Auto-sync on first load in Essential mode
+    React.useEffect(() => {
+        if (modeLoaded && mode === "essential" && !hasInitialSync) {
+            setHasInitialSync(true)
+            handleSync()
+        }
+    }, [modeLoaded, mode, hasInitialSync, handleSync])
+
+    // Don't render until mode is loaded from localStorage
+    if (!modeLoaded) {
+        return (
+            <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+                <div className="animate-pulse text-muted-foreground">Loading...</div>
+            </div>
+        )
+    }
 
     return (
         <div className="flex h-[calc(100vh-4rem)]">
@@ -35,8 +135,32 @@ export default function RetirementPage() {
                     ${sidebarCollapsed ? 'w-0' : 'w-80 md:w-96'}
                 `}
             >
-                <div className="h-full overflow-y-auto p-4 w-80 md:w-96">
-                    <ConfigSidebar config={config} onChange={setConfig} />
+                <div className="h-full overflow-y-auto w-80 md:w-96">
+                    {/* Mode Toggle Header */}
+                    <div className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+                        <ModeToggle
+                            mode={mode}
+                            onModeChange={handleModeChange}
+                            onSync={handleSync}
+                            isSyncing={isSyncing}
+                        />
+                    </div>
+
+                    {/* Conditional Sidebar Content */}
+                    <div className="p-4 pt-0">
+                        {mode === "essential" ? (
+                            <EssentialSidebar
+                                config={essentialConfig}
+                                onChange={setEssentialConfig}
+                                syncedFields={syncedFields}
+                            />
+                        ) : (
+                            <ConfigSidebar
+                                config={proConfig}
+                                onChange={setProConfig}
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -59,20 +183,24 @@ export default function RetirementPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Retirement Planner</h1>
-                            <p className="text-muted-foreground">Visualize your path to financial freedom.</p>
+                            <p className="text-muted-foreground">
+                                {mode === "essential"
+                                    ? "Simplified planning with key inputs"
+                                    : "Comprehensive planning with full control"}
+                            </p>
                         </div>
                         <div className="flex items-center gap-2">
-                            <MonteCarloDialog config={config} />
+                            <MonteCarloDialog config={projectionConfig} />
                         </div>
                     </div>
 
                     {/* Summary Cards */}
-                    <RetirementSummary data={projectionData} config={config} />
+                    <RetirementSummary data={projectionData} config={projectionConfig} />
 
                     {/* Main Net Worth Projection Chart */}
                     <RetirementChart
                         data={projectionData}
-                        retirementAge={config.retirementAge}
+                        retirementAge={projectionConfig.retirementAge}
                     />
 
                     {/* Asset Charts Row */}
@@ -84,7 +212,7 @@ export default function RetirementPage() {
                     {/* Income Composition Chart */}
                     <IncomeCompositionChart
                         data={projectionData}
-                        retirementAge={config.retirementAge}
+                        retirementAge={projectionConfig.retirementAge}
                     />
 
                     {/* Debt Service Analysis (only shown if there's debt) */}
@@ -93,10 +221,19 @@ export default function RetirementPage() {
                     {/* Cash Flow Explorer */}
                     <CashFlowExplorer
                         data={projectionData}
-                        retirementAge={config.retirementAge}
+                        retirementAge={projectionConfig.retirementAge}
                     />
                 </div>
             </div>
         </div>
+    )
+}
+
+// Main page component with provider wrapper
+export default function RetirementPage() {
+    return (
+        <RetirementModeProvider>
+            <RetirementPageContent />
+        </RetirementModeProvider>
     )
 }

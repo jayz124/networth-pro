@@ -136,29 +136,51 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                         <div className="h-[300px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={chartData}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
                                     <XAxis
                                         dataKey="age"
                                         tickLine={false}
                                         axisLine={false}
-                                        tick={{ fill: '#6b7280', fontSize: 11 }}
+                                        tick={{ className: "fill-muted-foreground text-[11px]" }}
                                         tickFormatter={(v) => `${v}`}
+                                        dy={8}
                                     />
                                     <YAxis
                                         tickLine={false}
                                         axisLine={false}
-                                        tick={{ fill: '#6b7280', fontSize: 11 }}
+                                        tick={{ className: "fill-muted-foreground text-[11px]" }}
                                         tickFormatter={formatCurrency}
-                                        width={60}
+                                        width={65}
+                                        dx={-5}
                                     />
                                     <Tooltip
-                                        labelFormatter={(l) => `Age ${l}`}
-                                        formatter={(v: any, name?: string) => [
-                                            formatCurrency(v),
-                                            name === 'p90' ? 'Upside (90th)' :
-                                                name === 'p50' ? 'Median (50th)' :
-                                                    'Downside (10th)'
-                                        ]}
+                                        content={({ active, payload, label }) => {
+                                            if (!active || !payload || !payload.length) return null
+                                            return (
+                                                <div className="bg-card border border-border rounded-lg shadow-lg p-3 min-w-[160px]">
+                                                    <p className="text-sm font-semibold text-foreground mb-2">Age {label}</p>
+                                                    <div className="space-y-1.5">
+                                                        {payload.map((entry: any, index: number) => (
+                                                            <div key={index} className="flex items-center justify-between gap-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div
+                                                                        className="w-2.5 h-2.5 rounded-full"
+                                                                        style={{ backgroundColor: entry.name === 'p90' ? '#10b981' : entry.name === 'p50' ? '#3b82f6' : '#ef4444' }}
+                                                                    />
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        {entry.name === 'p90' ? 'Upside (90th)' : entry.name === 'p50' ? 'Median (50th)' : 'Downside (10th)'}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-xs font-medium font-mono text-foreground">
+                                                                    {formatCurrency(entry.value)}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )
+                                        }}
+                                        cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeDasharray: '4 4' }}
                                     />
                                     <ReferenceLine x={config.retirementAge} stroke="#10b981" strokeDasharray="3 3" />
                                     <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="3 3" />
@@ -191,18 +213,18 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                         </div>
 
                         {/* Legend */}
-                        <div className="flex justify-center gap-6 text-xs">
-                            <div className="flex items-center gap-1">
-                                <div className="w-3 h-3 bg-emerald-500/30 rounded" />
-                                <span>Upside (90th percentile)</span>
+                        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-sm bg-emerald-500/30" />
+                                <span className="text-muted-foreground">Upside (90th percentile)</span>
                             </div>
-                            <div className="flex items-center gap-1">
-                                <div className="w-3 h-0.5 bg-blue-500" />
-                                <span>Median (50th percentile)</span>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-sm bg-blue-500" />
+                                <span className="text-muted-foreground">Median (50th percentile)</span>
                             </div>
-                            <div className="flex items-center gap-1">
-                                <div className="w-3 h-0.5 bg-red-500 border-dashed border-t border-red-500" />
-                                <span>Downside (10th percentile)</span>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-sm bg-red-500/50" />
+                                <span className="text-muted-foreground">Downside (10th percentile)</span>
                             </div>
                         </div>
 
