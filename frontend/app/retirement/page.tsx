@@ -10,6 +10,11 @@ import {
     essentialToFullConfig,
     fullToEssentialConfig
 } from "@/lib/retirement-logic"
+import {
+    runSimulation,
+    configToSimulationInput,
+    yearlyDataToProjectionPoints
+} from "@/lib/retirement-pro"
 import { ConfigSidebar } from "@/components/retirement/config-sidebar"
 import { EssentialSidebar } from "@/components/retirement/essential-sidebar"
 import { ModeToggle } from "@/components/retirement/mode-toggle"
@@ -18,8 +23,10 @@ import {
     AssetBreakdownChart,
     AssetAllocationChart,
     IncomeCompositionChart,
-    DebtServiceChart
+    DebtServiceChart,
+    TaxEfficiencyChart
 } from "@/components/retirement/retirement-chart"
+import { CashFlowSankey } from "@/components/retirement/cash-flow-sankey"
 import { RetirementSummary } from "@/components/retirement/retirement-summary"
 import { MonteCarloDialog } from "@/components/retirement/monte-carlo-dialog"
 import { CashFlowExplorer } from "@/components/retirement/cash-flow-explorer"
@@ -56,9 +63,22 @@ function RetirementPageContent() {
         return proConfig
     }, [mode, essentialConfig, proConfig])
 
+    // Use Pro engine for Pro mode, simple engine for Essential mode
     const projectionData = React.useMemo(() => {
+        if (mode === "pro") {
+            // Use the comprehensive Pro simulation engine
+            try {
+                const simulationInput = configToSimulationInput(projectionConfig)
+                const result = runSimulation(simulationInput)
+                return yearlyDataToProjectionPoints(result.yearlyData, projectionConfig)
+            } catch (error) {
+                console.error("Pro engine error, falling back to basic:", error)
+                return calculateProjection(projectionConfig)
+            }
+        }
+        // Use the simpler engine for Essential mode
         return calculateProjection(projectionConfig)
-    }, [projectionConfig])
+    }, [mode, projectionConfig])
 
     // Handle mode switching with config conversion
     const handleModeChange = React.useCallback((newMode: RetirementMode) => {
@@ -215,8 +235,24 @@ function RetirementPageContent() {
                         retirementAge={projectionConfig.retirementAge}
                     />
 
+                    {/* Pro Mode Only: Tax Efficiency Chart */}
+                    {mode === "pro" && (
+                        <TaxEfficiencyChart
+                            data={projectionData}
+                            retirementAge={projectionConfig.retirementAge}
+                        />
+                    )}
+
                     {/* Debt Service Analysis (only shown if there's debt) */}
                     <DebtServiceChart data={projectionData} />
+
+                    {/* Pro Mode Only: Cash Flow Sankey Diagram */}
+                    {mode === "pro" && (
+                        <CashFlowSankey
+                            data={projectionData}
+                            retirementAge={projectionConfig.retirementAge}
+                        />
+                    )}
 
                     {/* Cash Flow Explorer */}
                     <CashFlowExplorer

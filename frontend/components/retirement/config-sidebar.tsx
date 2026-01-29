@@ -771,6 +771,37 @@ export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
                         <AccordionContent className="space-y-4 pt-2 pb-4">
                             <div className="grid gap-1.5">
                                 <Label className="flex items-center text-sm">
+                                    Tax Region
+                                    <HelpTip content="Select your country/region for accurate tax calculations including income tax brackets, capital gains, and RMD rules" />
+                                </Label>
+                                <Select
+                                    value={config.taxStrategy.country || 'US'}
+                                    onValueChange={(v) => updateTaxStrategy("country", v)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="US">United States (Federal)</SelectItem>
+                                        <SelectItem value="US_TX">United States (Texas)</SelectItem>
+                                        <SelectItem value="US_CA">United States (California)</SelectItem>
+                                        <SelectItem value="US_NY">United States (New York)</SelectItem>
+                                        <SelectItem value="UK">United Kingdom</SelectItem>
+                                        <SelectItem value="IE">Ireland</SelectItem>
+                                        <SelectItem value="AU">Australia</SelectItem>
+                                        <SelectItem value="CA">Canada</SelectItem>
+                                        <SelectItem value="DE">Germany</SelectItem>
+                                        <SelectItem value="FR">France</SelectItem>
+                                        <SelectItem value="ES">Spain</SelectItem>
+                                        <SelectItem value="CH">Switzerland</SelectItem>
+                                        <SelectItem value="SG">Singapore</SelectItem>
+                                        <SelectItem value="AE">UAE</SelectItem>
+                                        <SelectItem value="CY">Cyprus</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label className="flex items-center text-sm">
                                     Withdrawal Strategy
                                     <HelpTip content="Order in which to withdraw from accounts in retirement" />
                                 </Label>

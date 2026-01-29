@@ -381,6 +381,92 @@ export function IncomeCompositionChart({ data, retirementAge }: { data: Projecti
     )
 }
 
+// Tax Efficiency Chart (Pro Mode)
+export function TaxEfficiencyChart({ data, retirementAge }: { data: ProjectionPoint[], retirementAge: number }) {
+    const { formatCompactCurrency } = useSettings()
+
+    // Filter out year 0 (initial state with no flows)
+    const chartData = data.filter(p => p.age > data[0]?.age).map(point => {
+        const totalCashFlow = (point.income || 0) + (point.pensionIncome || 0) + (point.rentalIncome || 0) +
+            (point.dividendIncome || 0) + (point.portfolioDrawdown || 0)
+        const tax = point.taxPaid || 0
+        const netCashFlow = totalCashFlow - tax
+
+        return {
+            age: point.age,
+            grossIncome: totalCashFlow,
+            tax: tax,
+            netIncome: netCashFlow,
+            effectiveRate: totalCashFlow > 0 ? (tax / totalCashFlow) * 100 : 0,
+            isRetired: point.isRetired,
+        }
+    })
+
+    return (
+        <Card className="h-[400px] flex flex-col">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-base">Tax Efficiency by Year</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                    Gross income, taxes paid, and post-tax cash flow
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
+                        <defs>
+                            <linearGradient id="taxGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
+                            </linearGradient>
+                            <linearGradient id="grossIncomeGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
+                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} dy={8} />
+                        <YAxis tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} tickFormatter={formatCompactCurrency} width={70} dx={-5} />
+                        <Tooltip content={<CustomTooltip formatter={formatCompactCurrency} />} />
+                        <Legend content={<CustomLegend />} />
+                        <ReferenceLine x={retirementAge} stroke="#10b981" strokeDasharray="5 5" strokeWidth={2} />
+
+                        {/* Gross Income (Base) */}
+                        <Area
+                            type="monotone"
+                            dataKey="grossIncome"
+                            stroke="#3b82f6"
+                            strokeWidth={2}
+                            fill="url(#grossIncomeGradient)"
+                            name="Gross Income"
+                        />
+
+                        {/* Tax Paid */}
+                        <Area
+                            type="monotone"
+                            dataKey="tax"
+                            stroke="#ef4444"
+                            strokeWidth={2}
+                            fill="url(#taxGradient)"
+                            name="Tax Paid"
+                        />
+
+                        {/* Net Income (Post-Tax) - Dashed line */}
+                        <Line
+                            type="monotone"
+                            dataKey="netIncome"
+                            stroke="#10b981"
+                            strokeWidth={2.5}
+                            strokeDasharray="5 5"
+                            dot={false}
+                            name="Net Income"
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </CardContent>
+        </Card>
+    )
+}
+
 // Debt Service Analysis Chart
 export function DebtServiceChart({ data }: { data: ProjectionPoint[] }) {
     const { formatCompactCurrency } = useSettings()

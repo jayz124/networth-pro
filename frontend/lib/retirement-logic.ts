@@ -42,6 +42,7 @@ export type TaxStrategyConfig = {
     withdrawalStrategy: 'standard' | 'tax_sensitive' | 'pro_rata';
     rothConversionStrategy: 'none' | 'fill_bracket' | 'fixed_amount';
     rothConversionAmount?: number;
+    country: string;  // Country code for tax profile (US, UK, IE, AU, etc.)
 }
 
 // Stress Test
@@ -255,6 +256,7 @@ export const DEFAULT_CONFIG: RetirementConfig = {
     taxStrategy: {
         withdrawalStrategy: 'standard',
         rothConversionStrategy: 'none',
+        country: 'US',
     },
 
     // Stress Test
@@ -868,6 +870,7 @@ export function essentialToFullConfig(essential: EssentialConfig): RetirementCon
         taxStrategy: {
             withdrawalStrategy: 'standard',
             rothConversionStrategy: 'none',
+            country: 'US',
         },
 
         // Stress Test (disabled in Essential)

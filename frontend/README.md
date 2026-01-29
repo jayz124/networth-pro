@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NetWorth Pro Frontend v1.3.3
 
-## Getting Started
+Next.js 16 frontend for the NetWorth Pro personal finance application.
 
-First, run the development server:
+## Quick Start
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Architecture
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### App Structure (`/app`)
+- `/` - Dashboard (Net Worth overview)
+- `/portfolio` - Investment portfolio management
+- `/assets` - Bank accounts and cash tracking
+- `/liabilities` - Debt tracking
+- `/real-estate` - Property management
+- `/retirement` - Retirement planning (Essential & Pro modes)
+- `/settings` - Currency and theme preferences
 
-## Learn More
+### Components (`/components`)
+- `/ui` - Reusable UI components (shadcn/ui based)
+- `/retirement` - Retirement-specific components
+  - `config-sidebar.tsx` - Pro mode configuration
+  - `essential-sidebar.tsx` - Essential mode configuration
+  - `mode-toggle.tsx` - Essential/Pro mode switcher
+  - `retirement-chart.tsx` - All retirement visualizations
+  - `cash-flow-sankey.tsx` - Sankey diagram for cash flows
+  - `monte-carlo-dialog.tsx` - Monte Carlo simulation modal
+  - `cash-flow-explorer.tsx` - Year-by-year cash flow table
 
-To learn more about Next.js, take a look at the following resources:
+### Libraries (`/lib`)
+- `retirement-logic.ts` - Core retirement calculations and types
+- `retirement-auto-populate.ts` - Data sync from other tabs
+- `retirement-mode-context.tsx` - Mode state management
+- `settings-context.tsx` - App-wide settings
+- `api.ts` - Backend API client
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Retirement Pro Engine (`/lib/retirement-pro`)
+Comprehensive simulation engine ported from partner's retirement-planner:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| File | Purpose |
+|------|---------|
+| `types.ts` | Type definitions (Assets, Liabilities, TaxRules, etc.) |
+| `engine.ts` | Main year-by-year simulation (~865 lines) |
+| `tax-engine.ts` | Multi-type tax calculations |
+| `tax-profiles.ts` | 15 country tax configurations |
+| `rmd-tables.ts` | Required Minimum Distributions |
+| `monte-carlo.ts` | Historical bootstrapping simulation |
+| `historical-returns.ts` | 1928-2023 market data |
+| `config-converter.ts` | Convert between config formats |
 
-## Deploy on Vercel
+## Retirement Tab Modes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Essential Mode
+Simplified planning with ~22 fields:
+- Personal Info (age, retirement age, life expectancy)
+- Current Investments (stocks, bonds, cash, other)
+- Real Estate & Debt
+- Annual Cash Flow
+- Retirement Spending (Go-Go/Slow-Go)
+- Pension/Social Security
+- Simple Assumptions (single return rate, tax rate)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Pro Mode
+Advanced planning with 50+ fields:
+- Multi-account types (Taxable, Tax-Deferred, Roth)
+- Cost basis tracking for capital gains
+- 15 country tax profiles
+- Withdrawal strategies (Standard, Tax-Sensitive, Pro-Rata)
+- Roth conversion strategies
+- RMD calculations
+- Stress testing
+- Monte Carlo analysis
+
+## Key Dependencies
+
+```json
+{
+  "next": "16.1.5",
+  "react": "19.2.3",
+  "recharts": "^3.7.0",
+  "@nivo/sankey": "^0.99.0",
+  "tailwindcss": "^4",
+  "@radix-ui/*": "Various UI primitives"
+}
+```
+
+## Scripts
+
+```bash
+npm run dev      # Development server
+npm run build    # Production build
+npm run start    # Production server
+npm run lint     # ESLint
+```
+
+## Environment
+
+The frontend expects the backend API at `http://127.0.0.1:8000`. No `.env` file required for local development.
