@@ -82,10 +82,12 @@ export async function fetchAutoPopulateData(): Promise<AutoPopulateData> {
     const totalMortgageBalance = allMortgages.reduce((sum, m) => sum + m.current_balance, 0)
 
     // Weighted average interest rate (weighted by balance)
-    let mortgageInterestRate = 0.055 // default 5.5%
+    // Note: interest_rate from Real Estate is stored as percentage (e.g., 6.2 for 6.2%)
+    // Convert to decimal (e.g., 0.062) for retirement calculations
+    let mortgageInterestRate = 0.06 // default 6%
     if (totalMortgageBalance > 0) {
         const weightedSum = allMortgages.reduce(
-            (sum, m) => sum + (m.interest_rate * m.current_balance),
+            (sum, m) => sum + ((m.interest_rate / 100) * m.current_balance),
             0
         )
         mortgageInterestRate = weightedSum / totalMortgageBalance

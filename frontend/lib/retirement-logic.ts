@@ -754,7 +754,7 @@ export const ESSENTIAL_DEFAULT_CONFIG: EssentialConfig = {
     // Real Estate & Debt
     primaryHomeValue: 500000,
     totalMortgageBalance: 300000,
-    mortgageInterestRate: 0.055,
+    mortgageInterestRate: 0.06,
     otherDebts: 0,
 
     // Cash Flow
