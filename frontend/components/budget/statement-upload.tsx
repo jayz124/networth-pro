@@ -308,7 +308,7 @@ export function StatementUpload({ categories, onImportComplete }: StatementUploa
                             <div className="flex items-center gap-3">
                                 {selectedFile && getFileIcon(selectedFile.name)}
                                 <div>
-                                    <p className="font-medium text-sm flex items-center gap-2">
+                                    <div className="font-medium text-sm flex items-center gap-2">
                                         {selectedFile?.name}
                                         {aiEnhanced && (
                                             <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
@@ -316,7 +316,7 @@ export function StatementUpload({ categories, onImportComplete }: StatementUploa
                                                 AI Enhanced
                                             </Badge>
                                         )}
-                                    </p>
+                                    </div>
                                     <p className="text-xs text-muted-foreground">
                                         {parsedTransactions.length} transactions found
                                         {bankDetected && ` | ${bankDetected}`}
