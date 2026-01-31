@@ -100,3 +100,55 @@ class Mortgage(BaseModel, table=True):
     monthly_payment: float
     term_years: int
     is_active: bool = Field(default=True)
+
+
+# Retirement Planning
+class RetirementPlan(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    description: Optional[str] = None
+    mode: str  # "pro" or "essential"
+    config_json: str  # JSON-serialized config
+    is_active: bool = Field(default=False)
+
+
+# Budgeting
+class BudgetCategory(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    budget_limit: Optional[float] = None
+    is_income: bool = Field(default=False)
+
+
+class Transaction(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    date: datetime = Field(index=True)
+    description: str
+    amount: float  # Positive=income, negative=expense
+    category_id: Optional[int] = Field(default=None, foreign_key="budgetcategory.id")
+    account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    is_recurring: bool = Field(default=False)
+    recurrence_frequency: Optional[str] = None  # daily, weekly, bi-weekly, monthly, yearly
+    merchant: Optional[str] = None
+    notes: Optional[str] = None
+    ai_categorized: bool = Field(default=False)
+
+
+class Subscription(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    amount: float
+    frequency: str  # monthly, yearly
+    category_id: Optional[int] = Field(default=None, foreign_key="budgetcategory.id")
+    next_billing_date: Optional[datetime] = None
+    is_active: bool = Field(default=True)
+
+
+# Application Settings
+class AppSettings(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    key: str = Field(index=True, unique=True)
+    value: Optional[str] = None
+    is_secret: bool = Field(default=False)  # If true, value should be masked in API responses

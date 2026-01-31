@@ -836,3 +836,897 @@ export async function importData(file: File): Promise<{ success: boolean; messag
         return { success: false, message: 'Failed to connect to server' };
     }
 }
+
+// ============================================
+// Retirement Plans API
+// ============================================
+
+export interface RetirementPlan {
+    id: number;
+    name: string;
+    description?: string;
+    mode: string;  // "pro" or "essential"
+    config_json?: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export async function fetchRetirementPlans(): Promise<RetirementPlan[]> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/retirement/plans`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return [];
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+}
+
+export async function fetchRetirementPlan(planId: number): Promise<RetirementPlan | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/retirement/plans/${planId}`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function fetchActiveRetirementPlan(): Promise<RetirementPlan | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/retirement/plans/active`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function createRetirementPlan(data: {
+    name: string;
+    description?: string;
+    mode: string;
+    config_json: string;
+}): Promise<RetirementPlan | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/retirement/plans`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function updateRetirementPlan(
+    planId: number,
+    data: {
+        name?: string;
+        description?: string;
+        mode?: string;
+        config_json?: string;
+    }
+): Promise<RetirementPlan | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/retirement/plans/${planId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function deleteRetirementPlan(planId: number): Promise<boolean> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/retirement/plans/${planId}`, {
+            method: 'DELETE',
+        });
+        return res.ok;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
+export async function activateRetirementPlan(planId: number): Promise<boolean> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/retirement/plans/${planId}/activate`, {
+            method: 'POST',
+        });
+        return res.ok;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
+// ============================================
+// Budget Categories API
+// ============================================
+
+export interface BudgetCategory {
+    id: number;
+    name: string;
+    icon?: string;
+    color?: string;
+    budget_limit?: number;
+    is_income: boolean;
+}
+
+export async function fetchBudgetCategories(): Promise<BudgetCategory[]> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/categories`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return [];
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+}
+
+export async function createBudgetCategory(data: {
+    name: string;
+    icon?: string;
+    color?: string;
+    budget_limit?: number;
+    is_income?: boolean;
+}): Promise<BudgetCategory | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/categories`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function updateBudgetCategory(
+    categoryId: number,
+    data: {
+        name?: string;
+        icon?: string;
+        color?: string;
+        budget_limit?: number;
+        is_income?: boolean;
+    }
+): Promise<BudgetCategory | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/categories/${categoryId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function deleteBudgetCategory(categoryId: number): Promise<boolean> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/categories/${categoryId}`, {
+            method: 'DELETE',
+        });
+        return res.ok;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
+// ============================================
+// Transactions API
+// ============================================
+
+export interface Transaction {
+    id: number;
+    date: string;
+    description: string;
+    amount: number;
+    category_id?: number;
+    category_name?: string;
+    category_color?: string;
+    account_id?: number;
+    account_name?: string;
+    is_recurring: boolean;
+    recurrence_frequency?: string;  // daily, weekly, bi-weekly, monthly, yearly
+    merchant?: string;
+    notes?: string;
+    ai_categorized: boolean;
+    created_at: string;
+}
+
+export async function fetchTransactions(params?: {
+    start_date?: string;
+    end_date?: string;
+    category_id?: number;
+    account_id?: number;
+    limit?: number;
+    offset?: number;
+}): Promise<Transaction[]> {
+    try {
+        const baseUrl = getBaseUrl();
+        const searchParams = new URLSearchParams();
+        if (params?.start_date) searchParams.append('start_date', params.start_date);
+        if (params?.end_date) searchParams.append('end_date', params.end_date);
+        if (params?.category_id) searchParams.append('category_id', params.category_id.toString());
+        if (params?.account_id) searchParams.append('account_id', params.account_id.toString());
+        if (params?.limit) searchParams.append('limit', params.limit.toString());
+        if (params?.offset) searchParams.append('offset', params.offset.toString());
+
+        const url = `${baseUrl}/api/v1/budget/transactions${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) return [];
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+}
+
+export async function createTransaction(data: {
+    date: string;
+    description: string;
+    amount: number;
+    category_id?: number;
+    account_id?: number;
+    is_recurring?: boolean;
+    recurrence_frequency?: string;
+    merchant?: string;
+    notes?: string;
+}): Promise<Transaction | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/transactions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function updateTransaction(
+    transactionId: number,
+    data: {
+        date?: string;
+        description?: string;
+        amount?: number;
+        category_id?: number;
+        account_id?: number;
+        is_recurring?: boolean;
+        recurrence_frequency?: string;
+        merchant?: string;
+        notes?: string;
+    }
+): Promise<Transaction | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/transactions/${transactionId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function deleteTransaction(transactionId: number): Promise<boolean> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/transactions/${transactionId}`, {
+            method: 'DELETE',
+        });
+        return res.ok;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
+// ============================================
+// Subscriptions API
+// ============================================
+
+export interface Subscription {
+    id: number;
+    name: string;
+    amount: number;
+    frequency: string;
+    category_id?: number;
+    category_name?: string;
+    next_billing_date?: string;
+    is_active: boolean;
+}
+
+export async function fetchSubscriptions(): Promise<Subscription[]> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/subscriptions`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return [];
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+}
+
+export async function createSubscription(data: {
+    name: string;
+    amount: number;
+    frequency: string;
+    category_id?: number;
+    next_billing_date?: string;
+    is_active?: boolean;
+}): Promise<Subscription | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/subscriptions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function updateSubscription(
+    subscriptionId: number,
+    data: {
+        name?: string;
+        amount?: number;
+        frequency?: string;
+        category_id?: number;
+        next_billing_date?: string;
+        is_active?: boolean;
+    }
+): Promise<Subscription | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/subscriptions/${subscriptionId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function deleteSubscription(subscriptionId: number): Promise<boolean> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/subscriptions/${subscriptionId}`, {
+            method: 'DELETE',
+        });
+        return res.ok;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
+// ============================================
+// Budget Analytics API
+// ============================================
+
+export interface BudgetSummary {
+    period: {
+        start: string;
+        end: string;
+    };
+    total_income: number;
+    total_expenses: number;
+    net: number;
+    transaction_count: number;
+    by_category: Array<{
+        category_id: number;
+        category_name: string;
+        category_color: string;
+        category_icon: string;
+        budget_limit?: number;
+        income: number;
+        expenses: number;
+        net: number;
+        transactions: number;
+    }>;
+}
+
+export interface CashFlowData {
+    month: string;
+    income: number;
+    expenses: number;
+    net: number;
+}
+
+export async function fetchBudgetSummary(params?: {
+    start_date?: string;
+    end_date?: string;
+}): Promise<BudgetSummary | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const searchParams = new URLSearchParams();
+        if (params?.start_date) searchParams.append('start_date', params.start_date);
+        if (params?.end_date) searchParams.append('end_date', params.end_date);
+
+        const url = `${baseUrl}/api/v1/budget/summary${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function fetchCashFlow(months: number = 6): Promise<CashFlowData[]> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/cash-flow?months=${months}`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return [];
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+}
+
+// ============================================
+// Budget AI API
+// ============================================
+
+export interface AIInsight {
+    type: 'warning' | 'tip' | 'positive';
+    title: string;
+    description: string;
+}
+
+export interface CategorizeResult {
+    transaction_id: number;
+    category_id?: number;
+    category_name?: string;
+    confidence: number;
+    method: 'rules' | 'ai';
+}
+
+export async function checkAIStatus(): Promise<{ ai_available: boolean; message: string }> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/ai/status`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return { ai_available: false, message: 'Failed to check AI status' };
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return { ai_available: false, message: 'Failed to connect to server' };
+    }
+}
+
+export async function autoCategorizeTransactions(transactionIds?: number[]): Promise<{
+    processed: number;
+    updated: number;
+    results: CategorizeResult[];
+} | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/ai/categorize`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transaction_ids: transactionIds }),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function fetchAIInsights(): Promise<{
+    insights: AIInsight[];
+    ai_powered: boolean;
+    period: { start: string; end: string };
+} | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/ai/insights`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export interface DetectedSubscription {
+    name: string;
+    amount: number;
+    frequency: string;
+    occurrences: number;
+    last_date?: string;
+    suggested_category_id?: number;
+}
+
+export async function detectSubscriptions(months: number = 6): Promise<{
+    detected: number;
+    new_suggestions: DetectedSubscription[];
+    existing_count: number;
+} | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/ai/detect-subscriptions?months=${months}`, {
+            method: 'POST',
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function createSubscriptionFromDetection(data: {
+    name: string;
+    amount: number;
+    frequency: string;
+    category_id?: number;
+}): Promise<Subscription | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const params = new URLSearchParams({
+            name: data.name,
+            amount: data.amount.toString(),
+            frequency: data.frequency,
+        });
+        if (data.category_id) params.append('category_id', data.category_id.toString());
+
+        const res = await fetch(`${baseUrl}/api/v1/budget/ai/create-subscription-from-detection?${params}`, {
+            method: 'POST',
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+// ============================================
+// Budget Forecast API
+// ============================================
+
+export interface ForecastMonth {
+    month: string;
+    month_name?: string;
+    income: number;
+    expenses: number;
+    net: number;
+    transactions: Array<{
+        description: string;
+        amount: number;
+        frequency: string;
+        category_name?: string;
+        occurrences?: number;
+        total?: number;
+        type?: string;
+    }>;
+}
+
+export interface ForecastResponse {
+    months: number;
+    total_projected_income: number;
+    total_projected_expenses: number;
+    total_projected_net: number;
+    monthly_average_income: number;
+    monthly_average_expenses: number;
+    forecast: ForecastMonth[];
+    recurring_count: number;
+    subscription_count: number;
+}
+
+export async function fetchBudgetForecast(months: number = 6): Promise<ForecastResponse | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/forecast?months=${months}`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+// ============================================
+// App Settings API
+// ============================================
+
+export interface AppSetting {
+    key: string;
+    value?: string;
+    is_secret: boolean;
+    is_set: boolean;
+    description: string;
+    updated_at?: string;
+}
+
+export async function fetchAppSettings(): Promise<AppSetting[]> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/settings`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return [];
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+}
+
+export async function fetchAppSetting(key: string): Promise<AppSetting | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/settings/${key}`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function updateAppSetting(key: string, value: string | null): Promise<AppSetting | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/settings/${key}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value }),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function deleteAppSetting(key: string): Promise<boolean> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/settings/${key}`, {
+            method: 'DELETE',
+        });
+        return res.ok;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
+// ============================================
+// Statement Upload API
+// ============================================
+
+export interface ParsedTransaction {
+    index: number;
+    date: string;
+    description: string;
+    amount: number;
+    merchant?: string;
+    suggested_category_id?: number;
+    suggested_category_name?: string;
+    confidence: number;
+    clean_description?: string;  // AI-cleaned description
+    ai_reviewed?: boolean;  // Whether AI has reviewed this transaction
+}
+
+export interface StatementParseResponse {
+    success: boolean;
+    transactions: ParsedTransaction[];
+    transaction_count: number;
+    errors: string[];
+    warnings: string[];
+    bank_detected?: string;
+    parser_used: string;
+    ai_enhanced?: boolean;  // Whether AI was used to enhance categorization
+}
+
+export interface AIReviewResponse {
+    success: boolean;
+    transactions: ParsedTransaction[];
+    ai_enhanced?: boolean;
+    error?: string;
+}
+
+export interface SupportedFormat {
+    extension: string;
+    name: string;
+    description: string;
+    requires_ai: boolean;
+    available: boolean;
+}
+
+export interface SupportedFormatsResponse {
+    formats: SupportedFormat[];
+    ai_available: boolean;
+    ai_message: string;
+}
+
+export async function parseStatement(file: File): Promise<StatementParseResponse | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch(`${baseUrl}/api/v1/budget/statements/parse`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({ detail: 'Failed to parse statement' }));
+            return {
+                success: false,
+                transactions: [],
+                transaction_count: 0,
+                errors: [error.detail || 'Failed to parse statement'],
+                warnings: [],
+                parser_used: 'none',
+            };
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return {
+            success: false,
+            transactions: [],
+            transaction_count: 0,
+            errors: ['Failed to connect to server'],
+            warnings: [],
+            parser_used: 'none',
+        };
+    }
+}
+
+export interface ImportTransactionData {
+    date: string;
+    description: string;
+    amount: number;
+    category_id?: number;
+    merchant?: string;
+    notes?: string;
+}
+
+export interface ImportResult {
+    success: boolean;
+    imported_count: number;
+    imported: Array<{ description: string; amount: number; date: string }>;
+    errors: string[];
+}
+
+export async function importTransactions(transactions: ImportTransactionData[]): Promise<ImportResult | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/statements/import`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transactions }),
+        });
+
+        if (!res.ok) {
+            return null;
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function getSupportedFormats(): Promise<SupportedFormatsResponse | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/statements/supported-formats`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function aiReviewTransactions(transactions: ParsedTransaction[]): Promise<AIReviewResponse | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/budget/statements/ai-review`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                transactions: transactions.map(t => ({
+                    date: t.date,
+                    description: t.description,
+                    amount: t.amount,
+                    merchant: t.merchant,
+                }))
+            }),
+        });
+
+        if (!res.ok) {
+            return null;
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}

@@ -30,10 +30,13 @@ import { CashFlowSankey } from "@/components/retirement/cash-flow-sankey"
 import { RetirementSummary } from "@/components/retirement/retirement-summary"
 import { MonteCarloDialog } from "@/components/retirement/monte-carlo-dialog"
 import { CashFlowExplorer } from "@/components/retirement/cash-flow-explorer"
+import { PlanSelector } from "@/components/retirement/plan-selector"
+import { SavePlanDialog } from "@/components/retirement/save-plan-dialog"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { RetirementModeProvider, useRetirementMode, RetirementMode } from "@/lib/retirement-mode-context"
 import { fetchAutoPopulateData, AutoPopulateData } from "@/lib/retirement-auto-populate"
+import { RetirementPlan, fetchRetirementPlan } from "@/lib/api"
 
 // Inner component that uses the mode context
 function RetirementPageContent() {
@@ -43,6 +46,9 @@ function RetirementPageContent() {
     const [proConfig, setProConfig] = React.useState<RetirementConfig>(DEFAULT_CONFIG)
     const [essentialConfig, setEssentialConfig] = React.useState<EssentialConfig>(ESSENTIAL_DEFAULT_CONFIG)
     const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
+
+    // State for saved plans
+    const [selectedPlan, setSelectedPlan] = React.useState<RetirementPlan | null>(null)
 
     // Sync state
     const [isSyncing, setIsSyncing] = React.useState(false)
@@ -137,6 +143,45 @@ function RetirementPageContent() {
         }
     }, [modeLoaded, mode, hasInitialSync, handleSync])
 
+    // Handle plan selection
+    const handleSelectPlan = React.useCallback(async (plan: RetirementPlan | null) => {
+        setSelectedPlan(plan)
+
+        if (plan) {
+            // Load the full plan with config
+            const fullPlan = await fetchRetirementPlan(plan.id)
+            if (fullPlan && fullPlan.config_json) {
+                try {
+                    const config = JSON.parse(fullPlan.config_json)
+
+                    if (fullPlan.mode === "essential") {
+                        setEssentialConfig(config)
+                        if (mode !== "essential") {
+                            setMode("essential")
+                        }
+                    } else {
+                        setProConfig(config)
+                        if (mode !== "pro") {
+                            setMode("pro")
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to parse plan config:", e)
+                }
+            }
+        }
+    }, [mode, setMode])
+
+    // Handle plan saved
+    const handlePlanSaved = React.useCallback((plan: RetirementPlan) => {
+        setSelectedPlan(plan)
+    }, [])
+
+    // Get current config as JSON for saving
+    const currentConfigJson = React.useMemo(() => {
+        return JSON.stringify(mode === "essential" ? essentialConfig : proConfig)
+    }, [mode, essentialConfig, proConfig])
+
     // Don't render until mode is loaded from localStorage
     if (!modeLoaded) {
         return (
@@ -209,7 +254,17 @@ function RetirementPageContent() {
                                     : "Comprehensive planning with full control"}
                             </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
+                            <PlanSelector
+                                selectedPlanId={selectedPlan?.id || null}
+                                onSelectPlan={handleSelectPlan}
+                            />
+                            <SavePlanDialog
+                                mode={mode}
+                                configJson={currentConfigJson}
+                                existingPlan={selectedPlan}
+                                onSaved={handlePlanSaved}
+                            />
                             <MonteCarloDialog config={projectionConfig} />
                         </div>
                     </div>

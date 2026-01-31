@@ -1,4 +1,4 @@
-# NetWorth Pro v1.3.3
+# NetWorth Pro v1.3.5
 
 A comprehensive personal finance and retirement planning application with multi-tab net worth tracking and advanced retirement simulations.
 
@@ -90,7 +90,14 @@ App: http://localhost:3000
 
 ## Version History
 
-### v1.3.3 (Current)
+### v1.3.5 (Current)
+- **Bank Statement Upload with AI Enhancement**: Import CSV, OFX/QFX, PDF, and images
+- **AI-Powered Transaction Categorization**: Smart categorization with pattern recognition
+- **Intelligent Parsing**: Auto-detect columns and date formats (DD/MM vs MM/DD)
+- **AI Review Feature**: Re-run AI categorization on parsed transactions
+- Clean description and merchant extraction from messy bank data
+
+### v1.3.3
 - **Retirement Pro Engine**: Comprehensive simulation with 15 country tax profiles
 - **Tax Efficiency Chart**: Visualize gross income, taxes, and net income over time
 - **Cash Flow Sankey Diagram**: Interactive flow visualization at any age

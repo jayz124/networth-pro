@@ -2,6 +2,38 @@
 
 All notable changes to NetWorth Pro will be documented in this file.
 
+## [1.3.5] - 2025-01-31
+
+### Added
+- **Bank Statement Upload with AI Enhancement**
+  - Support for CSV, OFX/QFX file formats (no AI required)
+  - Support for PDF and image files (requires OpenAI API key)
+  - Intelligent column auto-detection for CSV files
+  - Smart date format detection (DD/MM/YYYY vs MM/DD/YYYY)
+  - AI-powered transaction categorization when OpenAI key is configured
+  - AI Review button to re-run categorization on parsed transactions
+  - Clean description extraction from messy bank data
+  - Merchant name extraction
+  - Pattern recognition (e.g., large deposits from employers = salary, not subscriptions)
+
+- **Statement Upload UI Enhancements**
+  - "AI Enhanced" badge when transactions have been AI-reviewed
+  - Sparkles icon indicator on individual AI-reviewed transactions
+  - Shows cleaned descriptions when available
+  - AI Review button visible when AI is available but not yet enhanced
+
+### Changed
+- Updated version to 1.3.5
+- Improved statement parser with better error handling and fallback logic
+
+### Technical
+- Added `aiReviewTransactions()` API function
+- Added `/budget/statements/ai-review` endpoint for re-running AI categorization
+- Added `re` import to `ai_insights.py` for regex parsing
+- Enhanced `ParsedTransaction` type with `clean_description` and `ai_reviewed` fields
+
+---
+
 ## [1.3.3] - 2025-01-29
 
 ### Added

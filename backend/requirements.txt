@@ -9,3 +9,4 @@ passlib[bcrypt]>=1.7.4
 pytest>=7.4.0
 httpx>=0.26.0
 yfinance>=0.2.36
+plaid-python==38.1.0

@@ -1,4 +1,4 @@
-# NetWorth Pro Frontend v1.3.3
+# NetWorth Pro Frontend v1.3.5
 
 Next.js 16 frontend for the NetWorth Pro personal finance application.
 
