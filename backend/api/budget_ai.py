@@ -15,6 +15,7 @@ from services.ai_insights import (
     generate_spending_insights,
     is_ai_available,
     set_api_key,
+    ai_analyze_spending_trends,
 )
 from api.settings import get_setting_value
 
