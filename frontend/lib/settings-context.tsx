@@ -77,20 +77,47 @@ const STORAGE_KEY = "networth-pro-settings"
 const RATES_STORAGE_KEY = "networth-pro-exchange-rates"
 const RATES_CACHE_DURATION = 60 * 60 * 1000 // 1 hour in milliseconds
 
+// Fallback exchange rates (approximate, updated periodically)
+const FALLBACK_RATES: ExchangeRates = {
+    base: "USD",
+    rates: {
+        USD: 1,
+        EUR: 0.92,
+        GBP: 0.79,
+        JPY: 149.50,
+        CAD: 1.36,
+        AUD: 1.53,
+        CHF: 0.88,
+        CNY: 7.24,
+        INR: 83.12,
+        SGD: 1.34,
+    },
+    lastUpdated: new Date().toISOString(),
+}
+
 // Fetch exchange rates from Frankfurter API (free, no API key required)
 async function fetchExchangeRates(): Promise<ExchangeRates> {
-    const currencies = CURRENCIES.map(c => c.code).filter(c => c !== "USD").join(",")
-    const response = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${currencies}`)
+    try {
+        const currencies = CURRENCIES.map(c => c.code).filter(c => c !== "USD").join(",")
+        const response = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${currencies}`, {
+            signal: AbortSignal.timeout(5000), // 5 second timeout
+        })
 
-    if (!response.ok) {
-        throw new Error("Failed to fetch exchange rates")
-    }
+        if (!response.ok) {
+            console.warn("Exchange rate API returned non-OK status, using fallback rates")
+            return FALLBACK_RATES
+        }
 
-    const data = await response.json()
-    return {
-        base: "USD",
-        rates: { USD: 1, ...data.rates },
-        lastUpdated: new Date().toISOString(),
+        const data = await response.json()
+        return {
+            base: "USD",
+            rates: { USD: 1, ...data.rates },
+            lastUpdated: new Date().toISOString(),
+        }
+    } catch (error) {
+        // Network error, timeout, or other fetch failure - use fallback rates
+        console.warn("Failed to fetch exchange rates, using fallback rates:", error)
+        return FALLBACK_RATES
     }
 }
 
