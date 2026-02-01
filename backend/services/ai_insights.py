@@ -96,10 +96,15 @@ def _retry_with_backoff(func, *args, max_retries: int = MAX_RETRIES, **kwargs):
                 logger.error(f"Authentication error, not retrying: {e}")
                 raise
 
-            # Handle rate limits
-            if "rate_limit" in error_str or "429" in error_str:
-                # Extract retry-after if available
-                retry_after = 60  # Default to 60 seconds
+            # Don't retry on quota/billing errors - these won't resolve with retries
+            if "insufficient_quota" in error_str or "exceeded" in error_str and "quota" in error_str:
+                logger.error(f"Quota exceeded - add credits at https://platform.openai.com/account/billing: {e}")
+                raise
+
+            # Handle rate limits (temporary, can retry)
+            if "rate_limit" in error_str or ("429" in error_str and "insufficient_quota" not in error_str):
+                # Only wait/retry for actual rate limits, not quota issues
+                retry_after = 5  # Reduced from 60 - rate limits usually clear quickly
                 logger.warning(f"Rate limited, waiting {retry_after}s before retry")
                 time.sleep(retry_after)
                 continue
