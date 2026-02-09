@@ -145,7 +145,7 @@ export function FinancialStoriesCard() {
 
                 {!isAIPowered && !isLoading && (
                     <p className="text-xs text-muted-foreground text-center pt-3">
-                        Set OpenAI API key in Settings for richer narratives
+                        Configure an AI provider in Settings for richer narratives
                     </p>
                 )}
             </CardContent>

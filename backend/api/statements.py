@@ -12,6 +12,13 @@ from models import Transaction, BudgetCategory
 from services.statement_parser import parse_statement, ParsedTransaction
 from services.categorizer import categorize_transaction
 from services.ai_insights import ai_review_transactions, is_ai_available
+from services.ai_provider import (
+    AIProvider,
+    PROVIDER_CONFIG,
+    set_provider_config,
+    get_active_provider,
+    resolve_provider,
+)
 from api.settings import get_setting_value
 
 router = APIRouter(tags=["Statements"])
@@ -87,11 +94,17 @@ async def parse_bank_statement(
     if len(content) > 10 * 1024 * 1024:  # 10MB limit
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
 
-    # Get OpenAI API key for PDF/image parsing
-    openai_key = get_setting_value(session, "openai_api_key")
+    # Load AI provider configuration with auto-fallback
+    provider_str = get_setting_value(session, "ai_provider")
+    ai_model = get_setting_value(session, "ai_model") or None
+    provider, ai_key = resolve_provider(
+        provider_str,
+        get_key_fn=lambda key: get_setting_value(session, key),
+    )
+    set_provider_config(provider, ai_key, ai_model)
 
     # Parse the statement
-    result = parse_statement(file.filename, content, openai_key)
+    result = parse_statement(file.filename, content, ai_key)
 
     # Get categories for suggestion
     categories = session.exec(select(BudgetCategory)).all()
@@ -114,9 +127,9 @@ async def parse_bank_statement(
 
     # Try AI review if API key is available
     ai_enhanced = False
-    if openai_key and is_ai_available(openai_key):
+    if ai_key and is_ai_available(ai_key):
         try:
-            parsed_txns = ai_review_transactions(parsed_txns, category_list, openai_key)
+            parsed_txns = ai_review_transactions(parsed_txns, category_list, ai_key)
             ai_enhanced = True
         except Exception as e:
             result.warnings.append(f"AI review failed, using rule-based categorization: {str(e)}")
@@ -253,12 +266,18 @@ def ai_review_parsed_transactions(
     Run AI review on already-parsed transactions.
     Use this to re-categorize transactions with AI assistance.
     """
-    openai_key = get_setting_value(session, "openai_api_key")
+    provider_str = get_setting_value(session, "ai_provider")
+    ai_model = get_setting_value(session, "ai_model") or None
+    provider, ai_key = resolve_provider(
+        provider_str,
+        get_key_fn=lambda key: get_setting_value(session, key),
+    )
+    set_provider_config(provider, ai_key, ai_model)
 
-    if not openai_key or not is_ai_available(openai_key):
+    if not ai_key or not is_ai_available(ai_key):
         return {
             "success": False,
-            "error": "OpenAI API key not configured. Please add it in Settings.",
+            "error": "AI provider not configured. Please add an API key in Settings.",
             "transactions": data.transactions,
         }
 
@@ -269,7 +288,7 @@ def ai_review_parsed_transactions(
 
     try:
         # Run AI review
-        enhanced_txns = ai_review_transactions(data.transactions, category_list, openai_key)
+        enhanced_txns = ai_review_transactions(data.transactions, category_list, ai_key)
 
         # Format response
         result_transactions = []
@@ -309,8 +328,15 @@ def ai_review_parsed_transactions(
 @router.get("/budget/statements/supported-formats")
 def get_supported_formats(session: Session = Depends(get_session)):
     """Get list of supported file formats and their requirements."""
-    openai_key = get_setting_value(session, "openai_api_key")
-    ai_available = bool(openai_key)
+    provider_str = get_setting_value(session, "ai_provider")
+    provider, ai_key = resolve_provider(
+        provider_str,
+        get_key_fn=lambda key: get_setting_value(session, key),
+    )
+    set_provider_config(provider, ai_key, None)
+    p_config = PROVIDER_CONFIG[provider]
+    ai_available = bool(ai_key)
+    vision_available = ai_available and p_config["supports_vision"]
 
     return {
         "formats": [
@@ -338,18 +364,18 @@ def get_supported_formats(session: Session = Depends(get_session)):
             {
                 "extension": ".pdf",
                 "name": "PDF",
-                "description": "Bank statement PDF. Requires AI.",
+                "description": "Bank statement PDF. Requires AI with vision support.",
                 "requires_ai": True,
-                "available": ai_available,
+                "available": vision_available,
             },
             {
                 "extension": ".png/.jpg",
                 "name": "Image",
-                "description": "Screenshot of bank statement. Requires AI.",
+                "description": "Screenshot of bank statement. Requires AI with vision support.",
                 "requires_ai": True,
-                "available": ai_available,
+                "available": vision_available,
             },
         ],
-        "ai_available": ai_available,
-        "ai_message": "Configure OpenAI API key in Settings for PDF/image support" if not ai_available else "AI parsing enabled",
+        "ai_available": vision_available,
+        "ai_message": "Configure an AI provider in Settings for PDF/image support" if not vision_available else "AI parsing enabled",
     }

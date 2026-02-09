@@ -1506,7 +1506,38 @@ export interface CategorizeResult {
     method: 'rules' | 'ai';
 }
 
-export async function checkAIStatus(): Promise<{ ai_available: boolean; message: string }> {
+export interface AIProviderInfo {
+    id: string;
+    name: string;
+    is_active: boolean;
+    is_configured: boolean;
+    key_url: string;
+    default_model: string;
+    supports_vision: boolean;
+    supports_json_mode: boolean;
+}
+
+export interface AIProvidersResponse {
+    providers: AIProviderInfo[];
+    active_provider: string;
+    active_model?: string;
+}
+
+export async function fetchAIProviders(): Promise<AIProvidersResponse | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/settings/ai-providers`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function checkAIStatus(): Promise<{ ai_available: boolean; message: string; ai_provider_name?: string }> {
     try {
         const baseUrl = getBaseUrl();
         const res = await fetch(`${baseUrl}/api/v1/budget/ai/status`, {
@@ -1543,6 +1574,7 @@ export async function autoCategorizeTransactions(transactionIds?: number[]): Pro
 export async function fetchAIInsights(enhanced: boolean = false): Promise<{
     insights: AIInsight[];
     ai_powered: boolean;
+    ai_provider_name?: string;
     period: { start: string; end: string };
     trend_analysis?: TrendAnalysis;
     subscription_suggestions?: AIInsight[];
@@ -1564,6 +1596,7 @@ export async function fetchAIInsights(enhanced: boolean = false): Promise<{
 export async function fetchDashboardInsights(): Promise<{
     insights: AIInsight[];
     ai_powered: boolean;
+    ai_provider_name?: string;
 } | null> {
     try {
         const baseUrl = getBaseUrl();
@@ -1582,6 +1615,7 @@ export async function fetchFinancialStories(refresh: boolean = false): Promise<{
     stories: FinancialStory[];
     news: NewsArticle[];
     ai_powered: boolean;
+    ai_provider_name?: string;
 } | null> {
     try {
         const baseUrl = getBaseUrl();

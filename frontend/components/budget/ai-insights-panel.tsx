@@ -36,6 +36,7 @@ export function AIInsightsPanel({ onTransactionsUpdated }: AIInsightsPanelProps)
     const [subscriptionSuggestions, setSubscriptionSuggestions] = React.useState<AIInsight[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
     const [isAIPowered, setIsAIPowered] = React.useState(false)
+    const [providerName, setProviderName] = React.useState<string | null>(null)
     const [isCategorizing, setIsCategorizing] = React.useState(false)
     const [showTrends, setShowTrends] = React.useState(false)
     const [showSubTips, setShowSubTips] = React.useState(false)
@@ -50,6 +51,7 @@ export function AIInsightsPanel({ onTransactionsUpdated }: AIInsightsPanelProps)
         if (result) {
             setInsights(result.insights)
             setIsAIPowered(result.ai_powered)
+            setProviderName(result.ai_provider_name || null)
             setTrendAnalysis(result.trend_analysis || null)
             setSubscriptionSuggestions(result.subscription_suggestions || [])
         }
@@ -121,7 +123,7 @@ export function AIInsightsPanel({ onTransactionsUpdated }: AIInsightsPanelProps)
                         AI Insights
                     </CardTitle>
                     <CardDescription>
-                        {isAIPowered ? "Powered by OpenAI" : "Rule-based analysis"}
+                        {isAIPowered ? `Powered by ${providerName || "AI"}` : "Rule-based analysis"}
                     </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -308,7 +310,7 @@ export function AIInsightsPanel({ onTransactionsUpdated }: AIInsightsPanelProps)
                 {/* AI Status */}
                 {!isAIPowered && (
                     <p className="text-xs text-muted-foreground text-center pt-2">
-                        Set OPENAI_API_KEY for enhanced AI insights
+                        Configure an AI provider in Settings for enhanced insights
                     </p>
                 )}
             </CardContent>

@@ -9,6 +9,7 @@ from datetime import datetime
 
 from core.database import get_session
 from models import AppSettings
+from services.ai_provider import AIProvider, PROVIDER_CONFIG, resolve_provider
 
 router = APIRouter(tags=["Settings"])
 
@@ -27,7 +28,13 @@ class SettingResponse(BaseModel):
 
 # Known settings keys
 KNOWN_SETTINGS = {
+    "groq_api_key": {"is_secret": True, "description": "Groq API Key (free tier, no credit card required)"},
     "openai_api_key": {"is_secret": True, "description": "OpenAI API Key for AI features"},
+    "claude_api_key": {"is_secret": True, "description": "Anthropic Claude API Key"},
+    "kimi_api_key": {"is_secret": True, "description": "Moonshot AI (Kimi) API Key"},
+    "gemini_api_key": {"is_secret": True, "description": "Google Gemini API Key (free tier available)"},
+    "ai_provider": {"is_secret": False, "description": "Active AI provider: groq, openai, claude, kimi, or gemini"},
+    "ai_model": {"is_secret": False, "description": "AI model override (leave empty for provider default)"},
     "rentcast_api_key": {"is_secret": True, "description": "RentCast API key for property valuations (free: 50 calls/month)"},
     "default_currency": {"is_secret": False, "description": "Default currency for new items"},
 }
@@ -71,6 +78,39 @@ def list_settings(session: Session = Depends(get_session)):
             })
 
     return result
+
+
+@router.get("/settings/ai-providers")
+def get_ai_providers(session: Session = Depends(get_session)):
+    """Get all AI provider metadata, active provider, and configuration status."""
+    chosen_provider_str = get_setting_value(session, "ai_provider")
+    active_model = get_setting_value(session, "ai_model") or None
+
+    # Resolve with fallback (so the UI reflects what's actually being used)
+    active_provider, _ = resolve_provider(
+        chosen_provider_str,
+        get_key_fn=lambda key: get_setting_value(session, key),
+    )
+
+    providers = []
+    for provider, config in PROVIDER_CONFIG.items():
+        api_key = get_setting_value(session, config["api_key_setting"])
+        providers.append({
+            "id": provider.value,
+            "name": config["display_name"],
+            "is_active": provider == active_provider,
+            "is_configured": bool(api_key),
+            "key_url": config["key_url"],
+            "default_model": config["default_model"],
+            "supports_vision": config["supports_vision"],
+            "supports_json_mode": config["supports_json_mode"],
+        })
+
+    return {
+        "providers": providers,
+        "active_provider": active_provider.value,
+        "active_model": active_model or PROVIDER_CONFIG[active_provider]["default_model"],
+    }
 
 
 @router.get("/settings/{key}")

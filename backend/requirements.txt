@@ -10,3 +10,6 @@ pytest>=7.4.0
 httpx>=0.26.0
 yfinance>=0.2.36
 plaid-python==38.1.0
+openai>=1.0.0
+anthropic>=0.39.0
+google-genai>=1.0.0

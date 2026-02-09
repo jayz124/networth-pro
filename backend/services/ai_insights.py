@@ -1,5 +1,6 @@
 """
-AI-powered insights service using OpenAI.
+AI-powered insights service.
+Supports multiple providers via the ai_provider abstraction layer.
 Features:
 - Robust error handling with retries
 - Timeout protection
@@ -18,65 +19,34 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 import time
 
+from services.ai_provider import (
+    get_ai_client,
+    is_ai_available,
+    get_active_model,
+    get_active_provider,
+    get_provider_info,
+    set_provider_config,
+    AIProvider,
+    PROVIDER_CONFIG,
+    BaseAIClient,
+)
+
 # Configure logging
 logger = logging.getLogger(__name__)
-
-# Module-level API key cache
-_cached_api_key: Optional[str] = None
 
 # Simple in-memory cache for categorizations
 _categorization_cache: Dict[str, Tuple[Dict, datetime]] = {}
 _CACHE_TTL = timedelta(hours=24)
 
 # Configuration
-DEFAULT_MODEL = "gpt-4o-mini"
-FALLBACK_MODEL = "gpt-3.5-turbo"
 MAX_RETRIES = 3
 INITIAL_RETRY_DELAY = 1  # seconds
-REQUEST_TIMEOUT = 30  # seconds
 
 
 def set_api_key(api_key: Optional[str]):
-    """Set the API key from database settings."""
-    global _cached_api_key
-    _cached_api_key = api_key
-
-
-def get_openai_client(api_key: Optional[str] = None):
-    """Get OpenAI client if API key is available.
-
-    Args:
-        api_key: Optional API key to use. If not provided, uses cached key or env var.
-    """
-    key = api_key or _cached_api_key or os.environ.get("OPENAI_API_KEY")
-    if not key:
-        return None
-
-    try:
-        from openai import OpenAI
-        return OpenAI(api_key=key, timeout=REQUEST_TIMEOUT)
-    except ImportError:
-        logger.error("OpenAI package not installed. Run: pip install openai")
-        return None
-    except Exception as e:
-        logger.error(f"Failed to create OpenAI client: {e}")
-        return None
-
-
-def is_ai_available(api_key: Optional[str] = None) -> bool:
-    """Check if OpenAI API is configured and accessible."""
-    client = get_openai_client(api_key)
-    if not client:
-        return False
-
-    # Optionally verify the key works (commented out to avoid extra API calls)
-    # try:
-    #     client.models.list()
-    #     return True
-    # except Exception:
-    #     return False
-
-    return True
+    """Set the API key from database settings (backward compat)."""
+    if api_key:
+        set_provider_config(get_active_provider(), api_key)
 
 
 def _retry_with_backoff(func, *args, max_retries: int = MAX_RETRIES, **kwargs):
@@ -91,14 +61,20 @@ def _retry_with_backoff(func, *args, max_retries: int = MAX_RETRIES, **kwargs):
             last_exception = e
             error_str = str(e).lower()
 
-            # Don't retry on authentication errors
-            if "authentication" in error_str or "invalid api key" in error_str:
+            # Don't retry on authentication errors (cross-provider)
+            if any(k in error_str for k in [
+                "authentication", "invalid api key", "invalid_api_key",
+                "permission_denied", "unauthorized", "invalid x-api-key",
+                "api key not valid",
+            ]):
                 logger.error(f"Authentication error, not retrying: {e}")
                 raise
 
             # Don't retry on quota/billing errors - these won't resolve with retries
-            if "insufficient_quota" in error_str or "exceeded" in error_str and "quota" in error_str:
-                logger.error(f"Quota exceeded - add credits at https://platform.openai.com/account/billing: {e}")
+            if any(k in error_str for k in [
+                "insufficient_quota", "resource_exhausted", "billing",
+            ]) or ("exceeded" in error_str and "quota" in error_str):
+                logger.error(f"Quota exceeded: {e}")
                 raise
 
             # Handle rate limits (temporary, can retry)
@@ -180,29 +156,24 @@ def _parse_json_response(text: str) -> Any:
     raise ValueError(f"Could not parse JSON from response: {text[:200]}...")
 
 
-def _make_openai_request(
-    client,
+def _make_ai_request(
+    client: BaseAIClient,
     messages: List[Dict],
-    model: str = DEFAULT_MODEL,
+    model: Optional[str] = None,
     temperature: float = 0.3,
     max_tokens: int = 1000,
-    response_format: Optional[Dict] = None,
+    json_mode: bool = False,
 ) -> str:
-    """Make an OpenAI API request with error handling."""
-    kwargs = {
-        "model": model,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
-
-    # Use JSON mode if available and requested
-    if response_format:
-        kwargs["response_format"] = response_format
+    """Make an AI API request via the provider abstraction with retry logic."""
 
     def _call():
-        response = client.chat.completions.create(**kwargs)
-        return response.choices[0].message.content.strip()
+        return client.chat_completion(
+            messages=messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            json_mode=json_mode,
+        )
 
     return _retry_with_backoff(_call)
 
@@ -226,7 +197,7 @@ def ai_categorize_transaction(
     if cached:
         return cached
 
-    client = get_openai_client(api_key)
+    client = get_ai_client(api_key=api_key)
     if not client:
         return None
 
@@ -252,7 +223,7 @@ Available categories: {', '.join(available_categories)}
 Respond with JSON: {{"category": "exact_category_name", "confidence": 0.0-1.0, "reasoning": "brief explanation"}}"""
 
     try:
-        result_text = _make_openai_request(
+        result_text = _make_ai_request(
             client,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -260,7 +231,7 @@ Respond with JSON: {{"category": "exact_category_name", "confidence": 0.0-1.0, "
             ],
             temperature=0.2,
             max_tokens=150,
-            response_format={"type": "json_object"}
+            json_mode=True,
         )
 
         parsed = _parse_json_response(result_text)
@@ -280,7 +251,7 @@ Respond with JSON: {{"category": "exact_category_name", "confidence": 0.0-1.0, "
             return None
 
     except Exception as e:
-        logger.error(f"OpenAI categorization error: {e}")
+        logger.error(f"AI categorization error: {e}")
         return None
 
 
@@ -296,7 +267,7 @@ def generate_spending_insights(
     Returns:
         List of insight dicts with 'type', 'title', 'description'
     """
-    client = get_openai_client(api_key)
+    client = get_ai_client(api_key=api_key)
     if not client:
         logger.info("AI not available, using rule-based insights")
         return _generate_basic_insights(summary, previous_month_summary, transactions)
@@ -377,7 +348,7 @@ Include:
 Return ONLY the JSON array."""
 
     try:
-        result_text = _make_openai_request(
+        result_text = _make_ai_request(
             client,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -385,7 +356,7 @@ Return ONLY the JSON array."""
             ],
             temperature=0.7,
             max_tokens=1200,
-            response_format={"type": "json_object"}
+            json_mode=True,
         )
 
         # Handle potential wrapper object from JSON mode
@@ -418,7 +389,7 @@ Return ONLY the JSON array."""
             return _generate_basic_insights(summary, previous_month_summary, transactions)
 
     except Exception as e:
-        logger.error(f"OpenAI insights error: {e}")
+        logger.error(f"AI insights error: {e}")
         return _generate_basic_insights(summary, previous_month_summary, transactions)
 
 
@@ -670,7 +641,7 @@ def ai_review_transactions(
     Returns:
         Enhanced transactions with suggested_category_id, clean_description, merchant
     """
-    client = get_openai_client(api_key)
+    client = get_ai_client(api_key=api_key)
     if not client or not transactions:
         return transactions
 
@@ -731,16 +702,15 @@ Return a JSON object with an "results" array:
 {{"results": [{{"idx": 0, "cat_id": 1, "clean": "Salary from Company", "merchant": "Company Name"}}, ...]}}"""
 
         try:
-            result_text = _make_openai_request(
+            result_text = _make_ai_request(
                 client,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                model=DEFAULT_MODEL,
                 temperature=0.2,
                 max_tokens=2000,
-                response_format={"type": "json_object"}
+                json_mode=True,
             )
 
             parsed = _parse_json_response(result_text)
@@ -861,7 +831,7 @@ def generate_dashboard_insights(
     Returns:
         List of insight dicts with 'type', 'title', 'description'
     """
-    client = get_openai_client(api_key)
+    client = get_ai_client(api_key=api_key)
     if not client:
         logger.info("AI not available, using rule-based dashboard insights")
         return _generate_basic_dashboard_insights(
@@ -899,37 +869,59 @@ def generate_dashboard_insights(
         change = recent.get("net_worth", 0) - older.get("net_worth", 0)
         history_text = f"Net worth change over {len(networth_history)} data points: ${change:+,.2f}"
 
-    system_prompt = """You are a financial advisor providing a holistic view of someone's finances.
-Analyze their complete financial picture and provide actionable insights.
+    # Liability detail
+    liability_text = ""
+    if liability_data:
+        liability_text = "Liabilities:\n" + "\n".join([
+            f"- {l.get('name', '?')}: ${l.get('balance', 0):,.2f} ({l.get('category', 'other')})"
+            for l in liability_data
+        ])
 
-Guidelines:
-- Cover net worth trends, portfolio concentration, debt ratios, cash reserves, real estate equity
-- Be specific with numbers
-- Mix warnings with positive reinforcement"""
+    system_prompt = """You are a sharp personal finance advisor reviewing someone's complete financial picture.
+Your insights should feel like advice from a smart friend who happens to be a financial planner.
 
-    user_prompt = f"""Analyze this financial snapshot and provide 4-6 insights.
+Rules:
+- Reference SPECIFIC numbers, percentages, and dollar amounts from the data
+- Each insight should be ACTIONABLE — tell them exactly what to consider doing
+- Don't be generic. "Diversify your portfolio" is bad. "BTC-USD is 73% of your portfolio — consider trimming to 30% and spreading across 2-3 index funds" is good.
+- Mix tone: celebrate wins, flag real risks, give practical next steps
+- Compare ratios to benchmarks (debt-to-asset < 30% is healthy, emergency fund = 3-6 months, etc.)
+- If they have unrealized gains, mention tax-loss harvesting or rebalancing
+- If they have real estate, discuss equity position and LTV ratios"""
+
+    user_prompt = f"""Analyze this financial snapshot and provide 5-7 specific, actionable insights.
 
 NET WORTH: ${net_worth:,.2f}
 - Total Assets: ${total_assets:,.2f}
 - Total Liabilities: ${total_liabilities:,.2f}
-- Cash: ${breakdown.get('cash_accounts', 0):,.2f}
-- Investments: ${breakdown.get('investments', 0):,.2f}
-- Real Estate: ${breakdown.get('real_estate', 0):,.2f}
+- Cash & Bank Accounts: ${breakdown.get('cash_accounts', 0):,.2f}
+- Investment Portfolio: ${breakdown.get('investments', 0):,.2f}
+- Real Estate Value: ${breakdown.get('real_estate', 0):,.2f}
+- Mortgage Balance: ${breakdown.get('mortgages', 0):,.2f}
 
 {portfolio_text}
 {property_text}
+{liability_text}
 {history_text}
+
+Accounts: {account_summary.get('count', 0)} accounts across types: {', '.join(account_summary.get('types', []))}
 
 Provide insights as JSON:
 {{"insights": [
-  {{"type": "warning|tip|positive|milestone|trend", "title": "Brief Title", "description": "Detailed explanation"}}
+  {{"type": "warning|tip|positive|milestone|trend", "title": "Concise but specific title", "description": "2-3 sentences with specific numbers and actionable advice"}}
 ]}}
 
-Types: warning, tip, positive, milestone, trend
+Types:
+- "warning": Real risks that need attention (concentration, high leverage, low cash buffer)
+- "tip": Specific optimizations (rebalancing, tax strategies, debt payoff order)
+- "positive": Celebrate genuine strengths with context (compare to benchmarks)
+- "milestone": Net worth or portfolio milestones with progress to next one
+- "trend": Directional observations backed by data
+
 Return ONLY the JSON object."""
 
     try:
-        result_text = _make_openai_request(
+        result_text = _make_ai_request(
             client,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -937,7 +929,7 @@ Return ONLY the JSON object."""
             ],
             temperature=0.7,
             max_tokens=1200,
-            response_format={"type": "json_object"}
+            json_mode=True,
         )
 
         parsed = _parse_json_response(result_text)
@@ -986,73 +978,185 @@ def _generate_basic_dashboard_insights(
     net_worth = networth_data.get("net_worth", 0)
     breakdown = networth_data.get("breakdown", {})
     cash = breakdown.get("cash_accounts", 0)
+    investments = breakdown.get("investments", 0)
+    real_estate = breakdown.get("real_estate", 0)
+    mortgages = breakdown.get("mortgages", 0)
 
-    # Debt-to-asset ratio
+    # --- Asset Allocation Analysis ---
+    if total_assets > 0:
+        cash_pct = cash / total_assets * 100
+        invest_pct = investments / total_assets * 100
+        re_pct = real_estate / total_assets * 100
+
+        # Flag if too much cash (opportunity cost)
+        if cash_pct > 60 and cash > 50000:
+            insights.append({
+                "type": "tip",
+                "title": "Cash-Heavy Allocation",
+                "description": f"{cash_pct:.0f}% of your assets (${cash:,.0f}) sit in cash. Consider investing some for long-term growth — even a conservative index fund historically outpaces savings rates."
+            })
+        # Flag if heavily concentrated in one asset class
+        if re_pct > 70 and real_estate > 0:
+            insights.append({
+                "type": "warning",
+                "title": "Real Estate Concentration",
+                "description": f"Real estate makes up {re_pct:.0f}% of your total assets. This illiquidity could be a risk if you need funds quickly. Consider building liquid reserves."
+            })
+
+    # --- Debt-to-Asset Ratio ---
     if total_assets > 0:
         debt_ratio = total_liabilities / total_assets
         if debt_ratio > 0.5:
             insights.append({
                 "type": "warning",
                 "title": "High Debt-to-Asset Ratio",
-                "description": f"Your debt is {debt_ratio:.0%} of your assets (${total_liabilities:,.2f} / ${total_assets:,.2f}). Consider a debt paydown plan."
+                "description": f"Liabilities are {debt_ratio:.0%} of your assets (${total_liabilities:,.0f} / ${total_assets:,.0f}). Prioritize paying down high-interest debt to improve your financial position."
+            })
+        elif debt_ratio < 0.1 and total_liabilities > 0:
+            insights.append({
+                "type": "positive",
+                "title": "Excellent Debt Position",
+                "description": f"Your debt is just {debt_ratio:.0%} of total assets — well below the 30% threshold. This gives you strong financial flexibility."
             })
 
-    # Portfolio concentration
+    # --- Portfolio Analysis ---
     if portfolio_data:
         total_portfolio = sum(abs(h.get("current_value", 0)) for h in portfolio_data)
+        total_gain = sum(h.get("unrealized_gain", 0) for h in portfolio_data)
+        winners = [h for h in portfolio_data if h.get("unrealized_gain", 0) > 0]
+        losers = [h for h in portfolio_data if h.get("unrealized_gain", 0) < 0]
+
         if total_portfolio > 0:
-            for h in portfolio_data:
-                val = abs(h.get("current_value", 0))
-                pct = val / total_portfolio * 100
+            # Concentration risk
+            sorted_holdings = sorted(portfolio_data, key=lambda x: abs(x.get("current_value", 0)), reverse=True)
+            top = sorted_holdings[0] if sorted_holdings else None
+            if top:
+                pct = abs(top.get("current_value", 0)) / total_portfolio * 100
                 if pct > 40:
                     insights.append({
                         "type": "warning",
-                        "title": f"Concentration Risk: {h.get('ticker', '?')}",
-                        "description": f"{h.get('ticker', '?')} represents {pct:.0f}% of your portfolio. Consider diversifying to reduce risk."
+                        "title": f"Portfolio Concentrated in {top.get('ticker', '?')}",
+                        "description": f"{top.get('ticker', '?')} is {pct:.0f}% of your portfolio (${abs(top.get('current_value', 0)):,.0f}). A single bad day could significantly impact your wealth. Diversification reduces this risk."
                     })
-                    break
 
-    # Emergency fund check (cash < estimated 3 months expenses)
-    # Estimate monthly expenses as ~70% of non-investment assets if no budget data
-    estimated_monthly = total_assets * 0.03 if total_assets > 0 else 3000
-    if cash < estimated_monthly * 3 and cash > 0:
-        insights.append({
-            "type": "tip",
-            "title": "Build Your Emergency Fund",
-            "description": f"Your cash reserves (${cash:,.2f}) may not cover 3 months of expenses. Aim for ${estimated_monthly * 3:,.0f} in readily accessible funds."
-        })
+            # Overall P&L
+            if total_gain > 0:
+                gain_pct = (total_gain / (total_portfolio - total_gain)) * 100 if (total_portfolio - total_gain) > 0 else 0
+                insights.append({
+                    "type": "positive",
+                    "title": f"Portfolio Up ${total_gain:,.0f}",
+                    "description": f"Your investments have gained ${total_gain:,.0f} ({gain_pct:.1f}%) overall. {len(winners)} of {len(portfolio_data)} positions are profitable."
+                })
+            elif total_gain < 0:
+                loss_pct = (total_gain / (total_portfolio - total_gain)) * 100 if (total_portfolio - total_gain) > 0 else 0
+                insights.append({
+                    "type": "warning",
+                    "title": f"Portfolio Down ${abs(total_gain):,.0f}",
+                    "description": f"Your investments are down ${abs(total_gain):,.0f} ({loss_pct:.1f}%). {len(losers)} of {len(portfolio_data)} positions are underwater. Stay focused on your long-term strategy."
+                })
 
-    # Property equity milestone
+            # Best and worst performers
+            if len(portfolio_data) >= 3:
+                best = max(portfolio_data, key=lambda h: h.get("gain_percent", 0))
+                worst = min(portfolio_data, key=lambda h: h.get("gain_percent", 0))
+                if best.get("gain_percent", 0) > 10:
+                    insights.append({
+                        "type": "trend",
+                        "title": f"Top Performer: {best.get('ticker', '?')}",
+                        "description": f"{best.get('ticker', '?')} leads your portfolio at {best.get('gain_percent', 0):+.1f}% (${best.get('unrealized_gain', 0):+,.0f}). Consider whether it's time to take some profits."
+                    })
+                if worst.get("gain_percent", 0) < -10:
+                    insights.append({
+                        "type": "warning",
+                        "title": f"Underperformer: {worst.get('ticker', '?')}",
+                        "description": f"{worst.get('ticker', '?')} is down {worst.get('gain_percent', 0):.1f}% (${worst.get('unrealized_gain', 0):,.0f}). Evaluate if your thesis still holds or if it's time to cut losses."
+                    })
+
+    # --- Liability Analysis ---
+    if liability_data:
+        high_balance = [l for l in liability_data if l.get("balance", 0) > 10000]
+        if high_balance:
+            largest = max(high_balance, key=lambda l: l.get("balance", 0))
+            insights.append({
+                "type": "tip",
+                "title": f"Largest Debt: {largest.get('name', 'Unknown')}",
+                "description": f"{largest.get('name', 'This liability')} has a balance of ${largest.get('balance', 0):,.0f}. Increasing payments by even 10% can significantly reduce total interest paid."
+            })
+
+    # --- Real Estate Equity ---
     for prop in property_data:
         equity = prop.get("equity", 0)
+        current_value = prop.get("current_value", 0)
         purchase = prop.get("purchase_price", 0)
-        if purchase > 0 and equity > purchase * 0.5:
-            insights.append({
-                "type": "positive",
-                "title": f"Strong Equity: {prop.get('name', 'Property')}",
-                "description": f"Your equity in {prop.get('name', 'this property')} (${equity:,.2f}) exceeds 50% of purchase price."
-            })
+        if purchase > 0 and current_value > 0:
+            appreciation = ((current_value - purchase) / purchase) * 100
+            ltv = ((current_value - equity) / current_value * 100) if current_value > 0 else 0
+            if appreciation > 0:
+                insights.append({
+                    "type": "positive",
+                    "title": f"{prop.get('name', 'Property')}: {appreciation:.0f}% Appreciation",
+                    "description": f"This property has appreciated from ${purchase:,.0f} to ${current_value:,.0f}. Your equity stands at ${equity:,.0f} with a {ltv:.0f}% loan-to-value ratio."
+                })
+            elif ltv > 80:
+                insights.append({
+                    "type": "tip",
+                    "title": f"High LTV on {prop.get('name', 'Property')}",
+                    "description": f"Your loan-to-value ratio is {ltv:.0f}% — above the 80% threshold. This may mean you're paying PMI. Extra principal payments could help."
+                })
 
-    # Net worth milestones
-    milestones = [1_000_000, 500_000, 100_000]
+    # --- Net Worth Milestones ---
+    milestones = [10_000_000, 5_000_000, 1_000_000, 500_000, 100_000, 50_000]
     for milestone in milestones:
         if net_worth >= milestone:
-            label = f"${milestone / 1000:.0f}K" if milestone < 1_000_000 else f"${milestone / 1_000_000:.0f}M"
+            if milestone >= 1_000_000:
+                label = f"${milestone / 1_000_000:.0f}M"
+            else:
+                label = f"${milestone / 1000:.0f}K"
+            # How close to next milestone?
+            next_milestones = [m for m in milestones if m > milestone]
+            next_ms = next_milestones[-1] if next_milestones else None
+            next_text = ""
+            if next_ms:
+                remaining = next_ms - net_worth
+                if next_ms >= 1_000_000:
+                    next_label = f"${next_ms / 1_000_000:.0f}M"
+                else:
+                    next_label = f"${next_ms / 1000:.0f}K"
+                pct_there = (net_worth / next_ms) * 100
+                next_text = f" You're {pct_there:.0f}% of the way to {next_label} — ${remaining:,.0f} to go."
             insights.append({
                 "type": "milestone",
-                "title": f"Net Worth Over {label}",
-                "description": f"Your net worth of ${net_worth:,.2f} has crossed the {label} milestone. Keep building!"
+                "title": f"Net Worth: {label}+",
+                "description": f"Your net worth of ${net_worth:,.0f} has passed the {label} mark.{next_text}"
             })
             break
+
+    # --- Emergency Fund Assessment ---
+    if cash > 0 and total_assets > 0:
+        # Rough monthly expense estimate: liabilities payments + ~2% of non-investment assets
+        est_monthly = max(3000, total_liabilities * 0.02 + cash * 0.05)
+        months_covered = cash / est_monthly if est_monthly > 0 else 0
+        if months_covered >= 6:
+            insights.append({
+                "type": "positive",
+                "title": f"{months_covered:.0f} Months Cash Runway",
+                "description": f"Your cash reserves of ${cash:,.0f} could cover an estimated {months_covered:.0f} months of expenses. This is a strong safety net."
+            })
+        elif months_covered < 3:
+            insights.append({
+                "type": "tip",
+                "title": "Build Your Cash Buffer",
+                "description": f"Your cash of ${cash:,.0f} covers roughly {months_covered:.1f} months. Financial experts recommend 3-6 months of expenses in liquid reserves."
+            })
 
     if not insights:
         insights.append({
             "type": "positive",
             "title": "Financial Overview",
-            "description": f"Your net worth is ${net_worth:,.2f} with ${total_assets:,.2f} in assets. Keep tracking to spot trends."
+            "description": f"Your net worth is ${net_worth:,.0f} across {account_summary.get('count', 0)} accounts. Keep tracking to identify trends and opportunities."
         })
 
-    return insights[:6]
+    return insights[:8]
 
 
 def generate_financial_stories(
@@ -1070,7 +1174,7 @@ def generate_financial_stories(
     Returns:
         List of story dicts with 'type', 'emoji', 'headline', 'narrative', 'data_points'
     """
-    client = get_openai_client(api_key)
+    client = get_ai_client(api_key=api_key)
     if not client:
         logger.info("AI not available, using rule-based financial stories")
         return _generate_basic_stories(networth_data, budget_summary, portfolio_data, property_data)
@@ -1101,15 +1205,31 @@ def generate_financial_stories(
             f"{p.get('name', '?')} (${p.get('current_value', 0):,.2f})" for p in property_data
         ))
 
-    system_prompt = """You are a creative financial storyteller. Turn dry financial data into 2-3 engaging,
-relatable narratives that help people understand their money. Use metaphors, comparisons, and perspective shifts.
-Be warm, encouraging, and insightful. Each story should connect multiple data points in an interesting way."""
+    system_prompt = """You are a creative financial storyteller who makes people excited about their money.
+Turn raw financial data into vivid, memorable narratives that change how someone THINKS about their wealth.
+
+Style guide:
+- Use concrete comparisons people can feel ("enough to buy a Tesla", "like getting a free vacation every month")
+- Connect seemingly unrelated data points in surprising ways
+- Each story should have one "wow moment" — a reframing that makes the reader pause
+- Be warm and encouraging, but never patronizing
+- Reference real numbers — vagueness kills stories
+- Vary your angles: one story about growth, one about perspective, one about a specific win or opportunity"""
 
     seed_text = f"\nVariation seed: {seed}" if seed else ""
 
-    user_prompt = f"""Create 2-3 engaging financial stories from this data:
+    # Add recent transaction context if available
+    txn_context = ""
+    if recent_transactions:
+        txn_context = "\nRecent notable transactions:\n" + "\n".join([
+            f"- {t.get('date', '?')}: {t.get('description', '?')} ${t.get('amount', 0):,.2f}"
+            for t in recent_transactions[:10]
+        ])
+
+    user_prompt = f"""Create 3 engaging financial stories from this data. Each should make the reader feel something.
 
 {chr(10).join(context_parts)}
+{txn_context}
 {seed_text}
 
 Return JSON:
@@ -1117,25 +1237,31 @@ Return JSON:
   {{
     "type": "comparison|milestone|perspective|growth",
     "emoji": "single emoji",
-    "headline": "Catchy 5-8 word headline",
-    "narrative": "2-3 sentence engaging narrative connecting data points",
-    "data_points": ["key stat 1", "key stat 2"]
+    "headline": "Punchy 5-8 word headline",
+    "narrative": "2-3 sentence engaging narrative that connects data points with a vivid comparison or reframing. Include specific dollar amounts.",
+    "data_points": ["formatted stat 1", "formatted stat 2", "formatted stat 3"]
   }}
 ]}}
 
-Make each story feel different - one could be a comparison, another a milestone, another a perspective shift.
+Story ideas to consider:
+- Compare their portfolio gains to something tangible (months of rent, a car, a vacation)
+- Frame their savings rate as "days of freedom earned per month"
+- Show how their real estate equity has grown vs. what they originally put down
+- Compare their net worth to milestones and show progress to the next one
+- Turn their diversification into a story about resilience
+
 Return ONLY the JSON object."""
 
     try:
-        result_text = _make_openai_request(
+        result_text = _make_ai_request(
             client,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.85,
-            max_tokens=800,
-            response_format={"type": "json_object"}
+            max_tokens=1200,
+            json_mode=True,
         )
 
         parsed = _parse_json_response(result_text)
@@ -1150,9 +1276,9 @@ Return ONLY the JSON object."""
                 validated.append({
                     "type": story.get("type", "perspective"),
                     "emoji": str(story.get("emoji", "💡"))[:2],
-                    "headline": str(story.get("headline", "Your Financial Story"))[:60],
-                    "narrative": str(story.get("narrative", ""))[:400],
-                    "data_points": story.get("data_points", [])[:4],
+                    "headline": str(story.get("headline", "Your Financial Story"))[:80],
+                    "narrative": str(story.get("narrative", ""))[:500],
+                    "data_points": story.get("data_points", [])[:5],
                 })
 
         if validated:
@@ -1174,56 +1300,141 @@ def _generate_basic_stories(
     """Rule-based financial stories fallback."""
     stories = []
     net_worth = networth_data.get("net_worth", 0)
+    total_assets = networth_data.get("total_assets", 0)
+    total_liabilities = networth_data.get("total_liabilities", 0)
     breakdown = networth_data.get("breakdown", {})
+    cash = breakdown.get("cash_accounts", 0)
     investments = breakdown.get("investments", 0)
+    real_estate = breakdown.get("real_estate", 0)
 
-    # Story 1: Investment gains vs spending
+    # Story: Portfolio performance narrative
+    if portfolio_data:
+        total_gain = sum(h.get("unrealized_gain", 0) or 0 for h in portfolio_data)
+        total_value = sum(abs(h.get("current_value", 0)) for h in portfolio_data)
+        winners = sorted([h for h in portfolio_data if h.get("unrealized_gain", 0) > 0],
+                         key=lambda x: x.get("unrealized_gain", 0), reverse=True)
+        losers = sorted([h for h in portfolio_data if h.get("unrealized_gain", 0) < 0],
+                        key=lambda x: x.get("unrealized_gain", 0))
+
+        if total_gain > 0 and total_value > 0:
+            gain_pct = (total_gain / (total_value - total_gain)) * 100 if (total_value - total_gain) > 0 else 0
+            best = winners[0] if winners else None
+            best_text = f" {best.get('ticker', '?')} leads the pack at {best.get('gain_percent', 0):+.1f}%." if best else ""
+            stories.append({
+                "type": "growth",
+                "emoji": "📈",
+                "headline": "Your Money Is Making Money",
+                "narrative": f"Your portfolio has earned ${total_gain:,.0f} in unrealized gains ({gain_pct:.1f}% return).{best_text} That's money working for you while you sleep.",
+                "data_points": [
+                    f"${total_gain:,.0f} total gains",
+                    f"{len(winners)} winners, {len(losers)} losers",
+                    f"${total_value:,.0f} portfolio value",
+                ],
+            })
+        elif total_gain < 0 and budget_summary:
+            # Compare losses to expenses for perspective
+            expenses = budget_summary.get("total_expenses", 0)
+            if expenses > 0:
+                months_of_expenses = abs(total_gain) / expenses
+                stories.append({
+                    "type": "perspective",
+                    "emoji": "🔄",
+                    "headline": "Markets Give and Take",
+                    "narrative": f"Your portfolio is down ${abs(total_gain):,.0f} — equivalent to about {months_of_expenses:.1f} months of your spending. Markets are cyclical; historically, patience has been rewarded.",
+                    "data_points": [
+                        f"${abs(total_gain):,.0f} unrealized loss",
+                        f"~{months_of_expenses:.1f} months of expenses",
+                    ],
+                })
+
+    # Story: Investment gains vs monthly spending
     if budget_summary and portfolio_data:
         total_gain = sum(h.get("unrealized_gain", 0) or 0 for h in portfolio_data)
         expenses = budget_summary.get("total_expenses", 0)
+        income = budget_summary.get("total_income", 0)
         if total_gain > 0 and expenses > 0:
-            months_covered = total_gain / expenses if expenses > 0 else 0
+            months_covered = total_gain / expenses
             stories.append({
                 "type": "comparison",
-                "emoji": "📈",
-                "headline": "Your Investments Are Working for You",
-                "narrative": f"Your investment gains of ${total_gain:,.2f} could cover {months_covered:.1f} months of expenses at your current spending rate of ${expenses:,.2f}/month.",
-                "data_points": [f"${total_gain:,.2f} gains", f"${expenses:,.2f}/mo expenses"],
+                "emoji": "⚖️",
+                "headline": "Gains vs. Spending: The Scoreboard",
+                "narrative": f"Your investment gains of ${total_gain:,.0f} could fund {months_covered:.1f} months of your current lifestyle (${expenses:,.0f}/month). That's passive wealth building in action.",
+                "data_points": [f"${total_gain:,.0f} in gains", f"{months_covered:.1f} months funded"],
             })
-
-    # Story 2: Days of freedom
-    if budget_summary:
-        income = budget_summary.get("total_income", 0)
-        expenses = budget_summary.get("total_expenses", 0)
         if income > 0 and expenses > 0:
             savings = income - expenses
             if savings > 0:
+                savings_rate = (savings / income) * 100
+                # How long until you could take a month off?
                 daily_cost = expenses / 30
                 freedom_days = savings / daily_cost if daily_cost > 0 else 0
                 stories.append({
                     "type": "perspective",
                     "emoji": "🏖️",
-                    "headline": "Your Monthly Savings in Perspective",
-                    "narrative": f"Each month you save ${savings:,.2f}, which buys you {freedom_days:.0f} days of expenses covered. That's like earning a {freedom_days:.0f}-day financial cushion every month.",
-                    "data_points": [f"${savings:,.2f} saved", f"{freedom_days:.0f} days of freedom"],
+                    "headline": f"Saving {savings_rate:.0f}% of Your Income",
+                    "narrative": f"You're keeping ${savings:,.0f} each month — that buys you {freedom_days:.0f} extra days of financial runway. At this pace, your cash reserves alone could sustain you for {cash / expenses:.1f} months." if cash > 0 and expenses > 0 else f"You're keeping ${savings:,.0f} each month — that buys you {freedom_days:.0f} extra days of financial runway every single month.",
+                    "data_points": [
+                        f"{savings_rate:.0f}% savings rate",
+                        f"${savings:,.0f}/month saved",
+                        f"{freedom_days:.0f} days of freedom",
+                    ],
                 })
 
-    # Story 3: Net worth context
-    if net_worth > 0:
-        stories.append({
-            "type": "milestone",
-            "emoji": "🎯",
-            "headline": "Your Net Worth Journey",
-            "narrative": f"Your net worth of ${net_worth:,.2f} is spread across cash (${breakdown.get('cash_accounts', 0):,.2f}), investments (${investments:,.2f}), and real estate (${breakdown.get('real_estate', 0):,.2f}). Each piece plays a role in your financial security.",
-            "data_points": [f"${net_worth:,.2f} net worth"],
-        })
+    # Story: Wealth composition
+    if net_worth > 0 and total_assets > 0:
+        parts = []
+        if cash > 0:
+            parts.append(("cash", cash, cash / total_assets * 100))
+        if investments > 0:
+            parts.append(("investments", investments, investments / total_assets * 100))
+        if real_estate > 0:
+            parts.append(("real estate", real_estate, real_estate / total_assets * 100))
+
+        parts.sort(key=lambda x: x[1], reverse=True)
+        biggest = parts[0] if parts else None
+
+        # Calculate assets-per-liability ratio
+        leverage_text = ""
+        if total_liabilities > 0:
+            ratio = total_assets / total_liabilities
+            leverage_text = f" For every $1 of debt, you have ${ratio:.2f} in assets."
+
+        if biggest:
+            stories.append({
+                "type": "milestone",
+                "emoji": "🎯",
+                "headline": f"${net_worth:,.0f} and Growing",
+                "narrative": f"Your wealth is anchored by {biggest[0]} ({biggest[2]:.0f}% of assets at ${biggest[1]:,.0f}).{leverage_text} Diversification across {len(parts)} asset classes helps protect against downturns.",
+                "data_points": [
+                    f"${net_worth:,.0f} net worth",
+                    *[f"{p[0].title()}: ${p[1]:,.0f}" for p in parts[:3]],
+                ],
+            })
+
+    # Story: Real estate equity
+    if property_data:
+        total_equity = sum(p.get("equity", 0) for p in property_data)
+        total_prop_value = sum(p.get("current_value", 0) for p in property_data)
+        if total_equity > 0 and total_prop_value > 0:
+            equity_pct = (total_equity / total_prop_value) * 100
+            stories.append({
+                "type": "growth",
+                "emoji": "🏠",
+                "headline": f"${total_equity:,.0f} in Home Equity",
+                "narrative": f"You own {equity_pct:.0f}% of your ${total_prop_value:,.0f} in real estate. Every mortgage payment builds this equity — it's forced savings that grows with property values.",
+                "data_points": [
+                    f"${total_equity:,.0f} equity",
+                    f"{equity_pct:.0f}% ownership",
+                    f"{len(property_data)} properties",
+                ],
+            })
 
     if not stories:
         stories.append({
             "type": "growth",
             "emoji": "🌱",
             "headline": "Your Financial Journey Begins",
-            "narrative": "Every financial journey starts with tracking. You've taken the first step by monitoring your finances. Keep adding data to unlock personalized financial stories.",
+            "narrative": "Every great fortune started with a single step — tracking it. Add accounts, investments, and property to unlock personalized financial stories and insights.",
             "data_points": [],
         })
 
@@ -1244,7 +1455,7 @@ def ai_analyze_spending_trends(
     Returns:
         Dict with trend analysis, predictions, and recommendations
     """
-    client = get_openai_client(api_key)
+    client = get_ai_client(api_key=api_key)
     if not client or len(monthly_data) < 2:
         return None
 
@@ -1274,7 +1485,7 @@ Provide analysis as JSON:
 }}"""
 
     try:
-        result_text = _make_openai_request(
+        result_text = _make_ai_request(
             client,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -1282,7 +1493,7 @@ Provide analysis as JSON:
             ],
             temperature=0.5,
             max_tokens=500,
-            response_format={"type": "json_object"}
+            json_mode=True,
         )
 
         return _parse_json_response(result_text)

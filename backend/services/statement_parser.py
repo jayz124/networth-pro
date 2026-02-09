@@ -775,19 +775,33 @@ def parse_with_ai(
     api_key: str
 ) -> StatementParseResult:
     """
-    Parse a PDF or image file using OpenAI Vision API.
+    Parse a PDF or image file using AI Vision API.
 
     Args:
         file_content: Raw file bytes
         file_type: MIME type (application/pdf, image/png, image/jpeg, etc.)
-        api_key: OpenAI API key
+        api_key: API key (may be unused if provider is already configured)
     """
     result = StatementParseResult()
     result.parser_used = "ai"
 
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
+        from services.ai_provider import get_ai_client, get_active_provider, PROVIDER_CONFIG
+
+        client = get_ai_client(api_key=api_key)
+        if not client:
+            result.errors.append("No AI provider configured. Please set an API key in Settings.")
+            return result
+
+        # Check if the active provider supports vision
+        provider = get_active_provider()
+        config = PROVIDER_CONFIG[provider]
+        if not config["supports_vision"]:
+            result.errors.append(
+                f"{config['display_name']} does not support image/PDF parsing. "
+                "Please switch to OpenAI, Claude, or Gemini in Settings."
+            )
+            return result
 
         # Handle PDF files by converting to images first
         if file_type == 'application/pdf':
@@ -813,8 +827,8 @@ def parse_with_ai(
         # For images, process directly
         return parse_single_image(client, file_content, file_type)
 
-    except ImportError:
-        result.errors.append("OpenAI package not installed")
+    except ImportError as e:
+        result.errors.append(f"Missing AI package: {e}")
     except Exception as e:
         result.errors.append(f"AI parsing error: {str(e)}")
 
@@ -822,14 +836,11 @@ def parse_with_ai(
 
 
 def parse_single_image(client, file_content: bytes, file_type: str) -> StatementParseResult:
-    """Parse a single image using OpenAI Vision API."""
+    """Parse a single image using the AI provider's vision API."""
     result = StatementParseResult()
     result.parser_used = "ai"
 
     try:
-        # Convert to base64
-        base64_content = base64.b64encode(file_content).decode('utf-8')
-
         media_type = file_type
         if not media_type.startswith('image/'):
             media_type = 'image/png'  # Default assumption
@@ -850,28 +861,12 @@ Return the data as a JSON array like this:
 
 Only return the JSON array, no other text. If you cannot read the statement clearly, return an empty array []."""
 
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:{media_type};base64,{base64_content}",
-                                "detail": "high"
-                            }
-                        }
-                    ]
-                }
-            ],
+        response_text = client.vision_completion(
+            prompt=prompt,
+            image_data=file_content,
+            image_type=media_type,
             max_tokens=4096,
-            temperature=0.1,
         )
-
-        response_text = response.choices[0].message.content.strip()
 
         # Try to parse JSON
         import json

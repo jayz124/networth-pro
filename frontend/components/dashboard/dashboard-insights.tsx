@@ -19,6 +19,7 @@ export function DashboardInsightsCard() {
     const [insights, setInsights] = React.useState<AIInsight[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
     const [isAIPowered, setIsAIPowered] = React.useState(false)
+    const [providerName, setProviderName] = React.useState<string | null>(null)
 
     const loadInsights = React.useCallback(async () => {
         setIsLoading(true)
@@ -26,6 +27,7 @@ export function DashboardInsightsCard() {
         if (result) {
             setInsights(result.insights)
             setIsAIPowered(result.ai_powered)
+            setProviderName(result.ai_provider_name || null)
         }
         setIsLoading(false)
     }, [])
@@ -81,7 +83,7 @@ export function DashboardInsightsCard() {
                         Financial Insights
                     </CardTitle>
                     <CardDescription>
-                        {isAIPowered ? "Powered by OpenAI" : "Rule-based analysis"}
+                        {isAIPowered ? `Powered by ${providerName || "AI"}` : "Rule-based analysis"}
                     </CardDescription>
                 </div>
                 <Button
@@ -132,7 +134,7 @@ export function DashboardInsightsCard() {
 
                 {!isAIPowered && !isLoading && (
                     <p className="text-xs text-muted-foreground text-center pt-3">
-                        Set OpenAI API key in Settings for AI-powered insights
+                        Configure an AI provider in Settings for AI-powered insights
                     </p>
                 )}
             </CardContent>

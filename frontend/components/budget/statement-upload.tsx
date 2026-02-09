@@ -261,7 +261,7 @@ export function StatementUpload({ categories, onImportComplete }: StatementUploa
                         </p>
                         {!supportedFormats?.ai_available && (
                             <p className="text-xs text-yellow-600 mt-2">
-                                Configure OpenAI API key in Settings for PDF/image support
+                                Configure an AI provider in Settings for PDF/image support
                             </p>
                         )}
                     </div>

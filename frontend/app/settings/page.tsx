@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { useSettings, CURRENCIES } from "@/lib/settings-context"
-import { resetDatabase, exportData, importData, fetchAppSettings, updateAppSetting, AppSetting } from "@/lib/api"
+import { resetDatabase, exportData, importData, fetchAppSettings, updateAppSetting, AppSetting, fetchAIProviders, AIProviderInfo } from "@/lib/api"
 import {
     Settings,
     Globe,
@@ -38,11 +38,11 @@ import {
     Database,
     FileJson,
     RefreshCw,
-    Key,
     Eye,
     EyeOff,
     Sparkles,
     Home,
+    ExternalLink,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -54,6 +54,15 @@ interface Toast {
     message: string
 }
 
+// Setting key for each provider's API key
+const PROVIDER_KEY_MAP: Record<string, string> = {
+    groq: "groq_api_key",
+    openai: "openai_api_key",
+    claude: "claude_api_key",
+    kimi: "kimi_api_key",
+    gemini: "gemini_api_key",
+}
+
 export default function SettingsPage() {
     const { settings, updateCurrency, exchangeRates, isLoadingRates, refreshExchangeRates } = useSettings()
     const router = useRouter()
@@ -63,61 +72,127 @@ export default function SettingsPage() {
     const [toasts, setToasts] = React.useState<Toast[]>([])
     const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-    // API Key Settings
+    // App settings
     const [appSettings, setAppSettings] = React.useState<AppSetting[]>([])
     const [isLoadingSettings, setIsLoadingSettings] = React.useState(true)
-    const [openaiKey, setOpenaiKey] = React.useState("")
-    const [showApiKey, setShowApiKey] = React.useState(false)
-    const [isSavingKey, setIsSavingKey] = React.useState(false)
+
+    // AI Providers
+    const [providers, setProviders] = React.useState<AIProviderInfo[]>([])
+    const [activeProvider, setActiveProvider] = React.useState("openai")
+    const [activeModel, setActiveModel] = React.useState("")
+    const [modelOverride, setModelOverride] = React.useState("")
+    const [isSavingProvider, setIsSavingProvider] = React.useState(false)
+    const [isSavingModel, setIsSavingModel] = React.useState(false)
+
+    // Per-provider key inputs
+    const [providerKeys, setProviderKeys] = React.useState<Record<string, string>>({})
+    const [showProviderKey, setShowProviderKey] = React.useState<Record<string, boolean>>({})
+    const [savingProviderKey, setSavingProviderKey] = React.useState<Record<string, boolean>>({})
 
     // RentCast API Key
     const [rentcastKey, setRentcastKey] = React.useState("")
     const [showRentcastKey, setShowRentcastKey] = React.useState(false)
     const [isSavingRentcast, setIsSavingRentcast] = React.useState(false)
 
-    // Load app settings
-    React.useEffect(() => {
-        const loadSettings = async () => {
-            setIsLoadingSettings(true)
-            const settings = await fetchAppSettings()
-            setAppSettings(settings)
-            // Find OpenAI key and set current value (masked)
-            const openaiSetting = settings.find(s => s.key === "openai_api_key")
-            if (openaiSetting?.is_set) {
-                setOpenaiKey(openaiSetting.value || "")
+    const loadAllSettings = React.useCallback(async () => {
+        setIsLoadingSettings(true)
+        const [settings, providerData] = await Promise.all([
+            fetchAppSettings(),
+            fetchAIProviders(),
+        ])
+        setAppSettings(settings)
+
+        // Load provider keys from settings
+        const keys: Record<string, string> = {}
+        for (const [providerId, settingKey] of Object.entries(PROVIDER_KEY_MAP)) {
+            const s = settings.find(s => s.key === settingKey)
+            if (s?.is_set) {
+                keys[providerId] = s.value || ""
             }
-            // Find RentCast key
-            const rentcastSetting = settings.find(s => s.key === "rentcast_api_key")
-            if (rentcastSetting?.is_set) {
-                setRentcastKey(rentcastSetting.value || "")
-            }
-            setIsLoadingSettings(false)
         }
-        loadSettings()
+        setProviderKeys(keys)
+
+        // Load RentCast key
+        const rentcastSetting = settings.find(s => s.key === "rentcast_api_key")
+        if (rentcastSetting?.is_set) {
+            setRentcastKey(rentcastSetting.value || "")
+        }
+
+        // Load AI provider info
+        if (providerData) {
+            setProviders(providerData.providers)
+            setActiveProvider(providerData.active_provider)
+            setActiveModel(providerData.active_model || "")
+
+            // Check if there's a model override
+            const modelSetting = settings.find(s => s.key === "ai_model")
+            setModelOverride(modelSetting?.value || "")
+        }
+
+        setIsLoadingSettings(false)
     }, [])
 
-    const handleSaveOpenAIKey = async () => {
-        if (!openaiKey.trim()) return
-        setIsSavingKey(true)
+    React.useEffect(() => {
+        loadAllSettings()
+    }, [loadAllSettings])
+
+    const handleSaveProviderKey = async (providerId: string) => {
+        const key = providerKeys[providerId]?.trim()
+        if (!key) return
+        const settingKey = PROVIDER_KEY_MAP[providerId]
+        if (!settingKey) return
+
+        setSavingProviderKey(prev => ({ ...prev, [providerId]: true }))
         try {
-            const result = await updateAppSetting("openai_api_key", openaiKey.trim())
+            const result = await updateAppSetting(settingKey, key)
             if (result) {
-                showToast("success", "OpenAI API key saved successfully!")
-                // Refresh settings to get masked value
-                const settings = await fetchAppSettings()
-                setAppSettings(settings)
-                const openaiSetting = settings.find(s => s.key === "openai_api_key")
-                if (openaiSetting?.is_set) {
-                    setOpenaiKey(openaiSetting.value || "")
-                }
-                setShowApiKey(false)
+                const providerName = providers.find(p => p.id === providerId)?.name || providerId
+                showToast("success", `${providerName} API key saved!`)
+                setShowProviderKey(prev => ({ ...prev, [providerId]: false }))
+                await loadAllSettings()
             } else {
-                showToast("error", "Failed to save API key. Please try again.")
+                showToast("error", "Failed to save API key.")
             }
         } catch {
             showToast("error", "An unexpected error occurred.")
         } finally {
-            setIsSavingKey(false)
+            setSavingProviderKey(prev => ({ ...prev, [providerId]: false }))
+        }
+    }
+
+    const handleChangeProvider = async (value: string) => {
+        setIsSavingProvider(true)
+        try {
+            const result = await updateAppSetting("ai_provider", value)
+            if (result) {
+                setActiveProvider(value)
+                const providerName = providers.find(p => p.id === value)?.name || value
+                showToast("success", `Switched to ${providerName}`)
+                await loadAllSettings()
+            } else {
+                showToast("error", "Failed to update provider.")
+            }
+        } catch {
+            showToast("error", "An unexpected error occurred.")
+        } finally {
+            setIsSavingProvider(false)
+        }
+    }
+
+    const handleSaveModelOverride = async () => {
+        setIsSavingModel(true)
+        try {
+            const result = await updateAppSetting("ai_model", modelOverride.trim() || "")
+            if (result) {
+                showToast("success", modelOverride.trim() ? "Model override saved!" : "Model override cleared (using default)")
+                await loadAllSettings()
+            } else {
+                showToast("error", "Failed to save model override.")
+            }
+        } catch {
+            showToast("error", "An unexpected error occurred.")
+        } finally {
+            setIsSavingModel(false)
         }
     }
 
@@ -128,12 +203,7 @@ export default function SettingsPage() {
             const result = await updateAppSetting("rentcast_api_key", rentcastKey.trim())
             if (result) {
                 showToast("success", "RentCast API key saved successfully!")
-                const settings = await fetchAppSettings()
-                setAppSettings(settings)
-                const rentcastSetting = settings.find(s => s.key === "rentcast_api_key")
-                if (rentcastSetting?.is_set) {
-                    setRentcastKey(rentcastSetting.value || "")
-                }
+                await loadAllSettings()
                 setShowRentcastKey(false)
             } else {
                 showToast("error", "Failed to save API key. Please try again.")
@@ -145,7 +215,6 @@ export default function SettingsPage() {
         }
     }
 
-    const getOpenAISetting = () => appSettings.find(s => s.key === "openai_api_key")
     const getRentcastSetting = () => appSettings.find(s => s.key === "rentcast_api_key")
 
     const showToast = (type: ToastType, message: string) => {
@@ -162,7 +231,6 @@ export default function SettingsPage() {
             const result = await resetDatabase()
             if (result.success) {
                 showToast("success", "Database has been reset successfully. All data has been cleared.")
-                // Refresh the page to reflect changes
                 setTimeout(() => {
                     router.refresh()
                 }, 1500)
@@ -219,11 +287,17 @@ export default function SettingsPage() {
             showToast("error", "An unexpected error occurred while importing data.")
         } finally {
             setIsImporting(false)
-            // Reset file input
             if (fileInputRef.current) {
                 fileInputRef.current.value = ""
             }
         }
+    }
+
+    const getProviderNote = (providerId: string) => {
+        if (providerId === "groq") return "Free tier, no credit card"
+        if (providerId === "kimi") return "No PDF/image parsing"
+        if (providerId === "gemini") return "Free tier available"
+        return null
     }
 
     return (
@@ -346,99 +420,189 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
 
-                {/* API Keys / Integrations */}
+                {/* AI Provider */}
                 <Card>
                     <CardHeader>
                         <div className="flex items-center gap-2">
-                            <Key className="h-5 w-5 text-muted-foreground" />
+                            <Sparkles className="h-5 w-5 text-muted-foreground" />
                             <div>
-                                <CardTitle>AI Integrations</CardTitle>
+                                <CardTitle>AI Provider</CardTitle>
                                 <CardDescription>
-                                    Configure API keys for AI-powered features
+                                    Choose which AI powers insights, categorization, and statement parsing
                                 </CardDescription>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {/* OpenAI API Key */}
-                        <div className="p-4 border rounded-lg space-y-4">
-                            <div className="flex items-center gap-4">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-500/10">
-                                    <Sparkles className="h-5 w-5 text-violet-500" />
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="font-medium">OpenAI API Key</h4>
-                                    <p className="text-sm text-muted-foreground">
-                                        Required for AI-powered transaction categorization and spending insights
-                                    </p>
-                                </div>
-                                {getOpenAISetting()?.is_set && (
-                                    <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-1 rounded">
-                                        <CheckCircle2 className="h-3 w-3" />
-                                        Configured
-                                    </div>
-                                )}
+                        {isLoadingSettings ? (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Loading settings...
                             </div>
-
-                            {isLoadingSettings ? (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Loading settings...
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    <div className="flex gap-2">
-                                        <div className="relative flex-1">
-                                            <Input
-                                                type={showApiKey ? "text" : "password"}
-                                                placeholder={getOpenAISetting()?.is_set ? "Enter new key to update" : "sk-..."}
-                                                value={openaiKey}
-                                                onChange={(e) => setOpenaiKey(e.target.value)}
-                                                className="pr-10 font-mono text-sm"
-                                            />
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                                                onClick={() => setShowApiKey(!showApiKey)}
-                                            >
-                                                {showApiKey ? (
-                                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
-                                                ) : (
-                                                    <Eye className="h-4 w-4 text-muted-foreground" />
-                                                )}
-                                            </Button>
-                                        </div>
-                                        <Button
-                                            onClick={handleSaveOpenAIKey}
-                                            disabled={isSavingKey || !openaiKey.trim()}
+                        ) : (
+                            <>
+                                {/* Provider Selector */}
+                                <div className="grid gap-2">
+                                    <Label htmlFor="ai-provider">Active Provider</Label>
+                                    <div className="flex gap-2 items-center">
+                                        <Select
+                                            value={activeProvider}
+                                            onValueChange={handleChangeProvider}
+                                            disabled={isSavingProvider}
                                         >
-                                            {isSavingKey ? (
-                                                <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Saving...
-                                                </>
+                                            <SelectTrigger id="ai-provider" className="w-full md:w-80">
+                                                <SelectValue placeholder="Select AI provider" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {providers.map(p => (
+                                                    <SelectItem key={p.id} value={p.id}>
+                                                        <span className="flex items-center gap-2">
+                                                            <span>{p.name}</span>
+                                                            {p.is_configured && (
+                                                                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                                            )}
+                                                        </span>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {isSavingProvider && <Loader2 className="h-4 w-4 animate-spin" />}
+                                    </div>
+                                </div>
+
+                                {/* Model Override */}
+                                <div className="grid gap-2">
+                                    <Label htmlFor="model-override">Model Override</Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id="model-override"
+                                            placeholder={activeModel || "Using provider default"}
+                                            value={modelOverride}
+                                            onChange={(e) => setModelOverride(e.target.value)}
+                                            className="w-full md:w-80 font-mono text-sm"
+                                        />
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleSaveModelOverride}
+                                            disabled={isSavingModel}
+                                        >
+                                            {isSavingModel ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
                                             ) : (
                                                 "Save"
                                             )}
                                         </Button>
                                     </div>
                                     <p className="text-xs text-muted-foreground">
-                                        Your API key is stored securely and only used for budget AI features.
-                                        Get your key from{" "}
-                                        <a
-                                            href="https://platform.openai.com/api-keys"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary hover:underline"
-                                        >
-                                            platform.openai.com
-                                        </a>
+                                        Leave empty to use the provider&apos;s default model. Current: <code className="bg-muted px-1 py-0.5 rounded">{activeModel}</code>
                                     </p>
                                 </div>
-                            )}
-                        </div>
+
+                                {/* API Keys Section */}
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-medium">API Keys</h4>
+                                    <p className="text-xs text-muted-foreground">Configure keys for each provider. Only the active provider&apos;s key is used.</p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {providers.map(provider => (
+                                        <div
+                                            key={provider.id}
+                                            className={`p-4 border rounded-lg space-y-3 ${
+                                                provider.id === activeProvider ? "border-primary/50 bg-primary/5" : ""
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`flex h-3 w-3 rounded-full ${
+                                                    provider.id === activeProvider && provider.is_configured
+                                                        ? "bg-emerald-500"
+                                                        : provider.is_configured
+                                                        ? "bg-muted-foreground/30"
+                                                        : "bg-muted-foreground/10 border border-muted-foreground/20"
+                                                }`} />
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-medium text-sm">{provider.name}</h4>
+                                                        {provider.is_configured && (
+                                                            <span className="text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                                                                Configured
+                                                            </span>
+                                                        )}
+                                                        {!provider.is_configured && (
+                                                            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                                                Not configured
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {getProviderNote(provider.id) && (
+                                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                                        provider.id === "gemini" || provider.id === "groq"
+                                                            ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950"
+                                                            : "text-yellow-600 bg-yellow-50 dark:bg-yellow-950"
+                                                    }`}>
+                                                        {getProviderNote(provider.id)}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <Input
+                                                        type={showProviderKey[provider.id] ? "text" : "password"}
+                                                        placeholder={provider.is_configured ? "Enter new key to update" : "Enter API key..."}
+                                                        value={providerKeys[provider.id] || ""}
+                                                        onChange={(e) => setProviderKeys(prev => ({
+                                                            ...prev,
+                                                            [provider.id]: e.target.value
+                                                        }))}
+                                                        className="pr-10 font-mono text-sm"
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                                                        onClick={() => setShowProviderKey(prev => ({
+                                                            ...prev,
+                                                            [provider.id]: !prev[provider.id]
+                                                        }))}
+                                                    >
+                                                        {showProviderKey[provider.id] ? (
+                                                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                                        ) : (
+                                                            <Eye className="h-4 w-4 text-muted-foreground" />
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                                <Button
+                                                    onClick={() => handleSaveProviderKey(provider.id)}
+                                                    disabled={savingProviderKey[provider.id] || !providerKeys[provider.id]?.trim()}
+                                                >
+                                                    {savingProviderKey[provider.id] ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        "Save"
+                                                    )}
+                                                </Button>
+                                            </div>
+
+                                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                <ExternalLink className="h-3 w-3" />
+                                                <a
+                                                    href={provider.key_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-primary hover:underline"
+                                                >
+                                                    {provider.key_url.replace("https://", "")}
+                                                </a>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
 

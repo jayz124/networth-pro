@@ -15,19 +15,29 @@ from services.ai_insights import (
     generate_spending_insights,
     generate_enhanced_spending_insights,
     is_ai_available,
-    set_api_key,
     ai_analyze_spending_trends,
+)
+from services.ai_provider import (
+    AIProvider,
+    PROVIDER_CONFIG,
+    set_provider_config,
+    get_provider_info,
+    resolve_provider,
 )
 from api.settings import get_setting_value
 
 router = APIRouter(tags=["Budget AI"])
 
 
-def load_openai_key(session: Session) -> Optional[str]:
-    """Load OpenAI API key from settings."""
-    api_key = get_setting_value(session, "openai_api_key")
-    if api_key:
-        set_api_key(api_key)
+def load_ai_config(session: Session) -> Optional[str]:
+    """Load AI provider configuration from settings, with auto-fallback."""
+    provider_str = get_setting_value(session, "ai_provider")
+    model = get_setting_value(session, "ai_model") or None
+    provider, api_key = resolve_provider(
+        provider_str,
+        get_key_fn=lambda key: get_setting_value(session, key),
+    )
+    set_provider_config(provider, api_key, model)
     return api_key
 
 
@@ -48,11 +58,13 @@ class CategorizeResult(BaseModel):
 @router.get("/budget/ai/status")
 def get_ai_status(session: Session = Depends(get_session)):
     """Check if AI features are available."""
-    api_key = load_openai_key(session)
+    api_key = load_ai_config(session)
     available = is_ai_available(api_key)
+    info = get_provider_info()
     return {
         "ai_available": available,
-        "message": "OpenAI API key configured" if available else "Configure OpenAI API key in Settings for AI features"
+        "ai_provider_name": info["display_name"] if available else None,
+        "message": f"{info['display_name']} configured" if available else "Configure an AI provider in Settings for AI features"
     }
 
 
@@ -67,7 +79,7 @@ def auto_categorize(
     2. OpenAI fallback for uncertain cases
     """
     # Load API key from settings
-    api_key = load_openai_key(session)
+    api_key = load_ai_config(session)
 
     # Get categories
     categories = session.exec(select(BudgetCategory)).all()
@@ -151,7 +163,7 @@ def get_insights(
     When enhanced=True, also returns trend_analysis and subscription_suggestions.
     """
     # Load API key from settings
-    api_key = load_openai_key(session)
+    api_key = load_ai_config(session)
 
     # Get current month's summary
     today = datetime.utcnow()
@@ -276,9 +288,11 @@ def get_insights(
             api_key=api_key,
         )
 
+        info = get_provider_info()
         response = {
             "insights": result.get("insights", []),
             "ai_powered": is_ai_available(api_key),
+            "ai_provider_name": info["display_name"] if is_ai_available(api_key) else None,
             "period": {"start": start_date, "end": end_date},
         }
         if "trend_analysis" in result:
@@ -289,9 +303,11 @@ def get_insights(
     else:
         insights = generate_spending_insights(summary, txn_dicts, prev_summary)
 
+        info = get_provider_info()
         return {
             "insights": insights,
             "ai_powered": is_ai_available(api_key),
+            "ai_provider_name": info["display_name"] if is_ai_available(api_key) else None,
             "period": {
                 "start": start_date,
                 "end": end_date,

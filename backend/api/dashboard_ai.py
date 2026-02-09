@@ -16,7 +16,13 @@ from services.ai_insights import (
     generate_dashboard_insights,
     generate_financial_stories,
     is_ai_available,
-    set_api_key,
+)
+from services.ai_provider import (
+    AIProvider,
+    PROVIDER_CONFIG,
+    set_provider_config,
+    get_provider_info,
+    resolve_provider,
 )
 from services.news_fetcher import fetch_relevant_news
 from api.settings import get_setting_value
@@ -24,11 +30,15 @@ from api.settings import get_setting_value
 router = APIRouter(tags=["Dashboard AI"])
 
 
-def load_openai_key(session: Session) -> Optional[str]:
-    """Load OpenAI API key from settings."""
-    api_key = get_setting_value(session, "openai_api_key")
-    if api_key:
-        set_api_key(api_key)
+def load_ai_config(session: Session) -> Optional[str]:
+    """Load AI provider configuration from settings, with auto-fallback."""
+    provider_str = get_setting_value(session, "ai_provider")
+    model = get_setting_value(session, "ai_model") or None
+    provider, api_key = resolve_provider(
+        provider_str,
+        get_key_fn=lambda key: get_setting_value(session, key),
+    )
+    set_provider_config(provider, api_key, model)
     return api_key
 
 
@@ -82,7 +92,7 @@ def _get_networth_data(session: Session) -> dict:
 @router.get("/dashboard/ai/insights")
 def get_dashboard_insights(session: Session = Depends(get_session)):
     """Get AI-generated cross-domain financial insights for the dashboard."""
-    api_key = load_openai_key(session)
+    api_key = load_ai_config(session)
 
     # Gather data
     networth_data = _get_networth_data(session)
@@ -181,9 +191,11 @@ def get_dashboard_insights(session: Session = Depends(get_session)):
         api_key=api_key,
     )
 
+    info = get_provider_info()
     return {
         "insights": insights,
         "ai_powered": is_ai_available(api_key),
+        "ai_provider_name": info["display_name"] if is_ai_available(api_key) else None,
     }
 
 
@@ -193,7 +205,7 @@ def get_financial_stories(
     session: Session = Depends(get_session),
 ):
     """Get AI-generated financial stories for the dashboard."""
-    api_key = load_openai_key(session)
+    api_key = load_ai_config(session)
 
     # Seed: use timestamp if refresh, otherwise date-based for consistency
     if refresh:
@@ -297,8 +309,10 @@ def get_financial_stories(
         max_articles=8,
     )
 
+    info = get_provider_info()
     return {
         "stories": stories,
         "news": news_articles,
         "ai_powered": is_ai_available(api_key),
+        "ai_provider_name": info["display_name"] if is_ai_available(api_key) else None,
     }
