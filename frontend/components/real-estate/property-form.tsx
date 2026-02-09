@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -19,7 +20,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Property, createProperty, updateProperty } from "@/lib/api"
+import { Property, PropertySearchResult, createProperty, updateProperty, getValuationStatus } from "@/lib/api"
+import { AddressSearch } from "@/components/real-estate/address-search"
 
 const propertyTypes = [
     { value: "residential", label: "Residential" },
@@ -46,6 +48,21 @@ export function PropertyForm({ property, open, onOpenChange, onSaved }: Property
     const [currentValue, setCurrentValue] = React.useState(property?.current_value?.toString() || "")
     const [purchaseDate, setPurchaseDate] = React.useState(property?.purchase_date || "")
 
+    // Valuation provider fields
+    const [providerPropertyId, setProviderPropertyId] = React.useState<string | undefined>(property?.provider_property_id)
+    const [valuationProvider, setValuationProvider] = React.useState<string | undefined>(property?.valuation_provider)
+    const [rentcastAvailable, setRentcastAvailable] = React.useState(false)
+    const [autoFilled, setAutoFilled] = React.useState(false)
+
+    // Check if RentCast is available
+    React.useEffect(() => {
+        if (open) {
+            getValuationStatus().then(status => {
+                setRentcastAvailable(status.rentcast_available)
+            })
+        }
+    }, [open])
+
     // Reset form when property changes
     React.useEffect(() => {
         if (property) {
@@ -55,6 +72,9 @@ export function PropertyForm({ property, open, onOpenChange, onSaved }: Property
             setPurchasePrice(property.purchase_price.toString())
             setCurrentValue(property.current_value.toString())
             setPurchaseDate(property.purchase_date || "")
+            setProviderPropertyId(property.provider_property_id)
+            setValuationProvider(property.valuation_provider)
+            setAutoFilled(false)
         } else {
             setName("")
             setAddress("")
@@ -62,8 +82,32 @@ export function PropertyForm({ property, open, onOpenChange, onSaved }: Property
             setPurchasePrice("")
             setCurrentValue("")
             setPurchaseDate("")
+            setProviderPropertyId(undefined)
+            setValuationProvider(undefined)
+            setAutoFilled(false)
         }
     }, [property, open])
+
+    const handleAddressSelect = (result: PropertySearchResult) => {
+        const fullAddress = [result.address, result.city, result.state, result.zip_code].filter(Boolean).join(", ")
+        setAddress(fullAddress)
+        setProviderPropertyId(result.provider_property_id)
+        setValuationProvider(result.provider)
+
+        // Auto-fill current value from last sale or tax assessment
+        if (result.last_sale_price && !currentValue) {
+            setCurrentValue(result.last_sale_price.toString())
+            setAutoFilled(true)
+        } else if (result.tax_assessed_value && !currentValue) {
+            setCurrentValue(result.tax_assessed_value.toString())
+            setAutoFilled(true)
+        }
+
+        // Auto-fill name if empty
+        if (!name) {
+            setName(result.address || "")
+        }
+    }
 
     const handleSubmit = async () => {
         if (!name || !address || !purchasePrice || !currentValue) return
@@ -77,6 +121,8 @@ export function PropertyForm({ property, open, onOpenChange, onSaved }: Property
             purchase_price: parseFloat(purchasePrice),
             current_value: parseFloat(currentValue),
             purchase_date: purchaseDate || undefined,
+            provider_property_id: providerPropertyId,
+            valuation_provider: valuationProvider,
         }
 
         let result
@@ -117,16 +163,42 @@ export function PropertyForm({ property, open, onOpenChange, onSaved }: Property
                         />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="address" className="text-right">
+                        <Label className="text-right">
                             Address
                         </Label>
-                        <Input
-                            id="address"
-                            placeholder="123 Main St, City, State"
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                            className="col-span-3"
-                        />
+                        <div className="col-span-3 space-y-2">
+                            {rentcastAvailable ? (
+                                <>
+                                    <AddressSearch
+                                        onSelect={handleAddressSelect}
+                                        selectedAddress={address}
+                                        placeholder="Search US address..."
+                                    />
+                                    {!address && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Search to auto-fill property details, or type manually below
+                                        </p>
+                                    )}
+                                    <Input
+                                        placeholder="Or enter address manually"
+                                        value={address}
+                                        onChange={(e) => {
+                                            setAddress(e.target.value)
+                                            setProviderPropertyId(undefined)
+                                            setValuationProvider(undefined)
+                                            setAutoFilled(false)
+                                        }}
+                                    />
+                                </>
+                            ) : (
+                                <Input
+                                    id="address"
+                                    placeholder="123 Main St, City, State"
+                                    value={address}
+                                    onChange={(e) => setAddress(e.target.value)}
+                                />
+                            )}
+                        </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="type" className="text-right">
@@ -165,15 +237,26 @@ export function PropertyForm({ property, open, onOpenChange, onSaved }: Property
                         <Label htmlFor="current-value" className="text-right">
                             Current Value
                         </Label>
-                        <Input
-                            id="current-value"
-                            type="number"
-                            step="any"
-                            placeholder="520000"
-                            value={currentValue}
-                            onChange={(e) => setCurrentValue(e.target.value)}
-                            className="col-span-3"
-                        />
+                        <div className="col-span-3 space-y-1">
+                            <Input
+                                id="current-value"
+                                type="number"
+                                step="any"
+                                placeholder="520000"
+                                value={currentValue}
+                                onChange={(e) => {
+                                    setCurrentValue(e.target.value)
+                                    setAutoFilled(false)
+                                }}
+                            />
+                            {autoFilled && valuationProvider && (
+                                <div className="flex items-center gap-1.5">
+                                    <Badge variant="secondary" className="text-xs">
+                                        Auto-filled from RentCast
+                                    </Badge>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="purchase-date" className="text-right">

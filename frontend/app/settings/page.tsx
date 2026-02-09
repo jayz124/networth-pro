@@ -42,6 +42,7 @@ import {
     Eye,
     EyeOff,
     Sparkles,
+    Home,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -69,6 +70,11 @@ export default function SettingsPage() {
     const [showApiKey, setShowApiKey] = React.useState(false)
     const [isSavingKey, setIsSavingKey] = React.useState(false)
 
+    // RentCast API Key
+    const [rentcastKey, setRentcastKey] = React.useState("")
+    const [showRentcastKey, setShowRentcastKey] = React.useState(false)
+    const [isSavingRentcast, setIsSavingRentcast] = React.useState(false)
+
     // Load app settings
     React.useEffect(() => {
         const loadSettings = async () => {
@@ -79,6 +85,11 @@ export default function SettingsPage() {
             const openaiSetting = settings.find(s => s.key === "openai_api_key")
             if (openaiSetting?.is_set) {
                 setOpenaiKey(openaiSetting.value || "")
+            }
+            // Find RentCast key
+            const rentcastSetting = settings.find(s => s.key === "rentcast_api_key")
+            if (rentcastSetting?.is_set) {
+                setRentcastKey(rentcastSetting.value || "")
             }
             setIsLoadingSettings(false)
         }
@@ -110,7 +121,32 @@ export default function SettingsPage() {
         }
     }
 
+    const handleSaveRentcastKey = async () => {
+        if (!rentcastKey.trim()) return
+        setIsSavingRentcast(true)
+        try {
+            const result = await updateAppSetting("rentcast_api_key", rentcastKey.trim())
+            if (result) {
+                showToast("success", "RentCast API key saved successfully!")
+                const settings = await fetchAppSettings()
+                setAppSettings(settings)
+                const rentcastSetting = settings.find(s => s.key === "rentcast_api_key")
+                if (rentcastSetting?.is_set) {
+                    setRentcastKey(rentcastSetting.value || "")
+                }
+                setShowRentcastKey(false)
+            } else {
+                showToast("error", "Failed to save API key. Please try again.")
+            }
+        } catch {
+            showToast("error", "An unexpected error occurred.")
+        } finally {
+            setIsSavingRentcast(false)
+        }
+    }
+
     const getOpenAISetting = () => appSettings.find(s => s.key === "openai_api_key")
+    const getRentcastSetting = () => appSettings.find(s => s.key === "rentcast_api_key")
 
     const showToast = (type: ToastType, message: string) => {
         const id = Date.now()
@@ -406,6 +442,101 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
 
+                {/* Property Valuation API */}
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <Home className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                                <CardTitle>Property Valuation</CardTitle>
+                                <CardDescription>
+                                    Configure API keys for real estate property valuations
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {/* RentCast API Key */}
+                        <div className="p-4 border rounded-lg space-y-4">
+                            <div className="flex items-center gap-4">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
+                                    <Home className="h-5 w-5 text-emerald-500" />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-medium">RentCast API Key</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                        US property valuations, rent estimates, and property data (50 free calls/month)
+                                    </p>
+                                </div>
+                                {getRentcastSetting()?.is_set && (
+                                    <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-1 rounded">
+                                        <CheckCircle2 className="h-3 w-3" />
+                                        Configured
+                                    </div>
+                                )}
+                            </div>
+
+                            {isLoadingSettings ? (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading settings...
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <Input
+                                                type={showRentcastKey ? "text" : "password"}
+                                                placeholder={getRentcastSetting()?.is_set ? "Enter new key to update" : "Your RentCast API key"}
+                                                value={rentcastKey}
+                                                onChange={(e) => setRentcastKey(e.target.value)}
+                                                className="pr-10 font-mono text-sm"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                                                onClick={() => setShowRentcastKey(!showRentcastKey)}
+                                            >
+                                                {showRentcastKey ? (
+                                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4 text-muted-foreground" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                        <Button
+                                            onClick={handleSaveRentcastKey}
+                                            disabled={isSavingRentcast || !rentcastKey.trim()}
+                                        >
+                                            {isSavingRentcast ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Saving...
+                                                </>
+                                            ) : (
+                                                "Save"
+                                            )}
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Free tier: 50 API calls/month. Sign up at{" "}
+                                        <a
+                                            href="https://www.rentcast.io/api"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline"
+                                        >
+                                            rentcast.io/api
+                                        </a>
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* Data Management */}
                 <Card>
                     <CardHeader>
@@ -579,7 +710,7 @@ export default function SettingsPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span>Version</span>
-                                <span className="font-mono">1.3.5</span>
+                                <span className="font-mono">1.3.6</span>
                             </div>
                         </div>
                     </CardContent>

@@ -64,12 +64,66 @@ export interface Property {
     purchase_date?: string;
     current_value: number;
     currency: string;
+    provider_property_id?: string;
+    valuation_provider?: string;
     total_mortgage_balance?: number;
     equity?: number;
     monthly_payments?: number;
     mortgages?: Mortgage[];
     appreciation?: number;
     appreciation_percent?: number;
+    estimated_rent_monthly?: number;
+    value_range_low?: number;
+    value_range_high?: number;
+    rent_range_low?: number;
+    rent_range_high?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    square_footage?: number;
+    year_built?: number;
+    valuation_fetched_at?: string;
+}
+
+export interface PropertySearchResult {
+    address: string;
+    city: string;
+    state: string;
+    zip_code: string;
+    provider_property_id: string;
+    property_type?: string;
+    bedrooms?: number;
+    bathrooms?: number;
+    square_footage?: number;
+    year_built?: number;
+    lot_size?: number;
+    last_sale_price?: number;
+    last_sale_date?: string;
+    tax_assessed_value?: number;
+    provider: string;
+}
+
+export interface PropertyValuation {
+    estimated_value?: number;
+    estimated_rent_monthly?: number;
+    value_range_low?: number;
+    value_range_high?: number;
+    rent_range_low?: number;
+    rent_range_high?: number;
+    gross_yield?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    square_footage?: number;
+    year_built?: number;
+    provider_property_id?: string;
+    cached?: boolean;
+    fetched_at?: string;
+    provider: string;
+}
+
+export interface PropertyValueHistoryPoint {
+    date: string;
+    estimated_value: number;
+    source: string;
 }
 
 export interface Mortgage {
@@ -412,6 +466,8 @@ export async function createProperty(data: {
     purchase_date?: string;
     current_value: number;
     currency?: string;
+    provider_property_id?: string;
+    valuation_provider?: string;
 }): Promise<Property | null> {
     try {
         const baseUrl = getBaseUrl();
@@ -441,6 +497,8 @@ export async function updateProperty(
         purchase_price?: number;
         purchase_date?: string;
         current_value?: number;
+        provider_property_id?: string;
+        valuation_provider?: string;
     }
 ): Promise<Property | null> {
     try {
@@ -473,6 +531,84 @@ export async function deleteProperty(propertyId: number): Promise<boolean> {
     } catch (error) {
         console.error(error);
         return false;
+    }
+}
+
+// Property Valuation APIs
+export async function searchPropertyAddress(query: string): Promise<PropertySearchResult[]> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/properties/valuation/search?q=${encodeURIComponent(query)}`, {
+            cache: 'no-store'
+        });
+
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.results || [];
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+}
+
+export async function getPropertyValuation(propertyId: number, refresh = false): Promise<PropertyValuation | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/properties/${propertyId}/valuation?refresh=${refresh}`, {
+            cache: 'no-store'
+        });
+
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function getPropertyValueHistory(propertyId: number): Promise<PropertyValueHistoryPoint[]> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/properties/${propertyId}/value-history`, {
+            cache: 'no-store'
+        });
+
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.history || [];
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+}
+
+export async function refreshPropertyValues(): Promise<{ updated: number; errors: number } | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/properties/refresh-values`, {
+            method: 'POST',
+        });
+
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function getValuationStatus(): Promise<{ rentcast_available: boolean }> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/properties/valuation/status`, {
+            cache: 'no-store'
+        });
+
+        if (!res.ok) return { rentcast_available: false };
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return { rentcast_available: false };
     }
 }
 
@@ -1333,9 +1469,33 @@ export async function fetchCashFlow(months: number = 6): Promise<CashFlowData[]>
 // ============================================
 
 export interface AIInsight {
-    type: 'warning' | 'tip' | 'positive';
+    type: 'warning' | 'tip' | 'positive' | 'anomaly' | 'milestone' | 'trend';
     title: string;
     description: string;
+}
+
+export interface TrendAnalysis {
+    trend: string;
+    trend_description: string;
+    next_month_prediction?: { income: number; expenses: number };
+    key_observations: string[];
+    recommendations: string[];
+}
+
+export interface FinancialStory {
+    type: string;
+    emoji: string;
+    headline: string;
+    narrative: string;
+    data_points?: string[];
+}
+
+export interface NewsArticle {
+    title: string;
+    url: string;
+    source: string;
+    published: string;
+    theme: string;
 }
 
 export interface CategorizeResult {
@@ -1380,14 +1540,53 @@ export async function autoCategorizeTransactions(transactionIds?: number[]): Pro
     }
 }
 
-export async function fetchAIInsights(): Promise<{
+export async function fetchAIInsights(enhanced: boolean = false): Promise<{
     insights: AIInsight[];
     ai_powered: boolean;
     period: { start: string; end: string };
+    trend_analysis?: TrendAnalysis;
+    subscription_suggestions?: AIInsight[];
 } | null> {
     try {
         const baseUrl = getBaseUrl();
-        const res = await fetch(`${baseUrl}/api/v1/budget/ai/insights`, {
+        const params = enhanced ? '?enhanced=true' : '';
+        const res = await fetch(`${baseUrl}/api/v1/budget/ai/insights${params}`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function fetchDashboardInsights(): Promise<{
+    insights: AIInsight[];
+    ai_powered: boolean;
+} | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/dashboard/ai/insights`, {
+            cache: 'no-store'
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+export async function fetchFinancialStories(refresh: boolean = false): Promise<{
+    stories: FinancialStory[];
+    news: NewsArticle[];
+    ai_powered: boolean;
+} | null> {
+    try {
+        const baseUrl = getBaseUrl();
+        const params = refresh ? '?refresh=true' : '';
+        const res = await fetch(`${baseUrl}/api/v1/dashboard/ai/stories${params}`, {
             cache: 'no-store'
         });
         if (!res.ok) return null;

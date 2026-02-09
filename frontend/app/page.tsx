@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { DollarSign, CreditCard, Wallet, TrendingUp, ArrowDownRight } from "lucide-react";
 import { NetWorthChart } from "@/components/dashboard/net-worth-chart";
 import { CurrencyDisplay } from "@/components/currency-display";
+import { DashboardInsightsCard } from "@/components/dashboard/dashboard-insights";
+import { FinancialStoriesCard } from "@/components/dashboard/financial-stories";
 
 export default async function Home() {
   // Parallel data fetching
@@ -128,6 +130,12 @@ export default async function Home() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* AI Insights Row */}
+      <div className="grid gap-4 md:grid-cols-2 opacity-0 animate-[slide-up-fade_0.5s_ease-out_0.6s_forwards]">
+        <DashboardInsightsCard />
+        <FinancialStoriesCard />
       </div>
     </div>
   );

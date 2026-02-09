@@ -1,15 +1,37 @@
+import sqlite3
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from core.database import init_db
+
+
+def _ensure_property_columns():
+    """Add new columns to existing Property table (SQLite ALTER TABLE)."""
+    import os
+    db_path = os.path.join(os.path.dirname(__file__), "networth.db")
+    if not os.path.exists(db_path):
+        return
+    conn = sqlite3.connect(db_path)
+    for col, col_type in [
+        ("provider_property_id", "TEXT"),
+        ("valuation_provider", "TEXT"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE property ADD COLUMN {col} {col_type}")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+    conn.commit()
+    conn.close()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Create tables
     init_db()
+    _ensure_property_columns()
     yield
     # Shutdown
 
-from api import dashboard, portfolio, securities, real_estate, accounts, liabilities, retirement, budget, budget_ai, settings, statements
+from api import dashboard, portfolio, securities, real_estate, accounts, liabilities, retirement, budget, budget_ai, dashboard_ai, settings, statements
 
 app = FastAPI(title="Networth Pro API", lifespan=lifespan)
 
@@ -22,6 +44,7 @@ app.include_router(liabilities.router, prefix="/api/v1")
 app.include_router(retirement.router, prefix="/api/v1")
 app.include_router(budget.router, prefix="/api/v1")
 app.include_router(budget_ai.router, prefix="/api/v1")
+app.include_router(dashboard_ai.router, prefix="/api/v1")
 app.include_router(settings.router, prefix="/api/v1")
 app.include_router(statements.router, prefix="/api/v1")
 from api import plaid

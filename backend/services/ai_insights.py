@@ -299,7 +299,7 @@ def generate_spending_insights(
     client = get_openai_client(api_key)
     if not client:
         logger.info("AI not available, using rule-based insights")
-        return _generate_basic_insights(summary)
+        return _generate_basic_insights(summary, previous_month_summary, transactions)
 
     # Build context
     category_breakdown = summary.get("by_category", [])
@@ -336,7 +336,7 @@ Guidelines:
 - Consider budget limits when mentioned
 - Identify trends and patterns"""
 
-    user_prompt = f"""Analyze this monthly financial summary and provide 3-5 personalized insights.
+    user_prompt = f"""Analyze this monthly financial summary and provide 5-8 personalized insights.
 
 SUMMARY:
 - Total Income: ${total_income:.2f}
@@ -352,13 +352,27 @@ Provide insights as a JSON array with this exact format:
 [
   {{"type": "warning", "title": "Brief Title", "description": "Detailed explanation with specific numbers"}},
   {{"type": "tip", "title": "Brief Title", "description": "Actionable suggestion"}},
-  {{"type": "positive", "title": "Brief Title", "description": "Encouragement for good behavior"}}
+  {{"type": "positive", "title": "Brief Title", "description": "Encouragement for good behavior"}},
+  {{"type": "anomaly", "title": "Brief Title", "description": "Unusual spending pattern detected"}},
+  {{"type": "milestone", "title": "Brief Title", "description": "Financial milestone reached"}},
+  {{"type": "trend", "title": "Brief Title", "description": "Trend observation based on data"}}
 ]
 
 Types:
 - "warning": Concerning patterns requiring attention
 - "tip": Money-saving opportunities or suggestions
 - "positive": Good financial behaviors to reinforce
+- "anomaly": Unusual spending patterns or outliers detected
+- "milestone": Financial milestones reached or approaching
+- "trend": Spending or income trend observations
+
+Include:
+- Trend observations from month-over-month changes
+- Spending anomalies (unusually large single transactions or category spikes)
+- Milestones like savings rate thresholds
+- A 50/30/20 rule assessment (needs/wants/savings split)
+- Spending concentration analysis (is money going to just 1-2 categories?)
+- Highlight the biggest single expense if it's a significant chunk of total spending
 
 Return ONLY the JSON array."""
 
@@ -370,7 +384,7 @@ Return ONLY the JSON array."""
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.7,
-            max_tokens=800,
+            max_tokens=1200,
             response_format={"type": "json_object"}
         )
 
@@ -388,7 +402,7 @@ Return ONLY the JSON array."""
         for insight in insights:
             if isinstance(insight, dict):
                 insight_type = insight.get("type", "tip")
-                if insight_type not in ["warning", "tip", "positive"]:
+                if insight_type not in ["warning", "tip", "positive", "anomaly", "milestone", "trend"]:
                     insight_type = "tip"
 
                 validated_insights.append({
@@ -398,17 +412,21 @@ Return ONLY the JSON array."""
                 })
 
         if validated_insights:
-            return validated_insights[:5]
+            return validated_insights[:8]
         else:
             logger.warning("AI returned no valid insights, using fallback")
-            return _generate_basic_insights(summary)
+            return _generate_basic_insights(summary, previous_month_summary, transactions)
 
     except Exception as e:
         logger.error(f"OpenAI insights error: {e}")
-        return _generate_basic_insights(summary)
+        return _generate_basic_insights(summary, previous_month_summary, transactions)
 
 
-def _generate_basic_insights(summary: Dict[str, Any]) -> List[Dict[str, str]]:
+def _generate_basic_insights(
+    summary: Dict[str, Any],
+    previous_month_summary: Optional[Dict[str, Any]] = None,
+    transactions: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, str]]:
     """Generate rule-based insights when AI is unavailable."""
     insights = []
 
@@ -444,6 +462,24 @@ def _generate_basic_insights(summary: Dict[str, Any]) -> List[Dict[str, str]]:
                 "description": f"You're saving {savings_rate:.1f}% - aim for 20% to build a stronger financial cushion."
             })
 
+        # Milestone: savings rate crossing 30%
+        if savings_rate >= 30:
+            insights.append({
+                "type": "milestone",
+                "title": "Savings Superstar",
+                "description": f"Your savings rate of {savings_rate:.1f}% is in the top tier. You're saving nearly a third of your income!"
+            })
+
+    # Milestone: positive net for first time
+    if net > 0 and total_income > 0:
+        prev_net = (previous_month_summary or {}).get("total_income", 0) - (previous_month_summary or {}).get("total_expenses", 0)
+        if previous_month_summary and prev_net <= 0:
+            insights.append({
+                "type": "milestone",
+                "title": "Back in the Green",
+                "description": f"You've achieved positive net savings of ${net:.2f} this month after a deficit last month."
+            })
+
     # Budget analysis
     over_budget_categories = []
     for cat in summary.get("by_category", []):
@@ -475,6 +511,37 @@ def _generate_basic_insights(summary: Dict[str, Any]) -> List[Dict[str, str]]:
                     "description": f"{top_cat['category_name']} accounts for {pct_of_total:.0f}% of your spending (${top_cat['expenses']:.2f}). Look for ways to reduce this."
                 })
 
+    # Anomaly detection: flag any category where spending is >2x the average
+    if categories:
+        expense_cats = [c for c in categories if c.get("expenses", 0) > 0]
+        if len(expense_cats) >= 2:
+            avg_expense = sum(c["expenses"] for c in expense_cats) / len(expense_cats)
+            for cat in expense_cats:
+                if cat["expenses"] > avg_expense * 2:
+                    insights.append({
+                        "type": "anomaly",
+                        "title": f"Unusual Spending: {cat['category_name']}",
+                        "description": f"Spending on {cat['category_name']} (${cat['expenses']:.2f}) is more than double the category average (${avg_expense:.2f})."
+                    })
+
+    # Trend: month-over-month direction
+    if previous_month_summary:
+        prev_expenses = previous_month_summary.get("total_expenses", 0)
+        if prev_expenses > 0:
+            change_pct = ((total_expenses - prev_expenses) / prev_expenses) * 100
+            if change_pct > 10:
+                insights.append({
+                    "type": "trend",
+                    "title": "Spending Trending Up",
+                    "description": f"Your expenses increased {change_pct:.1f}% compared to last month (${prev_expenses:.2f} → ${total_expenses:.2f})."
+                })
+            elif change_pct < -10:
+                insights.append({
+                    "type": "trend",
+                    "title": "Spending Trending Down",
+                    "description": f"Your expenses decreased {abs(change_pct):.1f}% compared to last month (${prev_expenses:.2f} → ${total_expenses:.2f})."
+                })
+
     # Subscription check
     for cat in categories:
         if cat.get("category_name") == "Subscriptions" and cat.get("expenses", 0) > 100:
@@ -485,6 +552,93 @@ def _generate_basic_insights(summary: Dict[str, Any]) -> List[Dict[str, str]]:
             })
             break
 
+    # --- NEW: 50/30/20 Rule Check ---
+    if total_income > 0 and total_expenses > 0:
+        # Needs = housing, groceries, utilities, transportation, insurance
+        # Wants = dining, entertainment, shopping, subscriptions
+        # Savings = what's left
+        needs_keywords = {"housing", "rent", "mortgage", "groceries", "utilities", "transportation",
+                          "insurance", "health", "medical", "childcare", "education"}
+        wants_keywords = {"dining", "entertainment", "shopping", "subscriptions", "travel",
+                          "personal", "clothing", "recreation", "hobbies"}
+
+        needs_total = 0.0
+        wants_total = 0.0
+        for cat in categories:
+            cat_name = cat.get("category_name", "").lower()
+            cat_expenses = cat.get("expenses", 0)
+            if any(k in cat_name for k in needs_keywords):
+                needs_total += cat_expenses
+            elif any(k in cat_name for k in wants_keywords):
+                wants_total += cat_expenses
+
+        needs_pct = (needs_total / total_income * 100) if total_income > 0 else 0
+        wants_pct = (wants_total / total_income * 100) if total_income > 0 else 0
+        savings_pct = ((total_income - total_expenses) / total_income * 100) if total_income > 0 else 0
+
+        if needs_pct > 0 or wants_pct > 0:
+            # Only show if we could actually classify some categories
+            status_parts = []
+            if needs_pct > 50:
+                status_parts.append(f"needs at {needs_pct:.0f}% (target 50%)")
+            if wants_pct > 30:
+                status_parts.append(f"wants at {wants_pct:.0f}% (target 30%)")
+
+            if status_parts:
+                insights.append({
+                    "type": "tip",
+                    "title": "50/30/20 Rule Check",
+                    "description": f"Your spending split: needs {needs_pct:.0f}%, wants {wants_pct:.0f}%, savings {savings_pct:.0f}%. Adjust {', '.join(status_parts)} to get closer to the ideal 50/30/20 balance."
+                })
+            else:
+                insights.append({
+                    "type": "positive",
+                    "title": "50/30/20 Rule: On Track",
+                    "description": f"Your spending split: needs {needs_pct:.0f}%, wants {wants_pct:.0f}%, savings {savings_pct:.0f}%. You're within healthy budgeting guidelines."
+                })
+
+    # --- NEW: Biggest Single Expense Spotlight ---
+    if transactions:
+        expense_txns = [t for t in transactions if t.get("amount", 0) < 0]
+        if expense_txns:
+            biggest = max(expense_txns, key=lambda t: abs(t.get("amount", 0)))
+            biggest_amt = abs(biggest.get("amount", 0))
+            biggest_desc = biggest.get("description", "Unknown")[:40]
+            if total_expenses > 0:
+                pct_of_total = (biggest_amt / total_expenses) * 100
+                if pct_of_total > 15:
+                    insights.append({
+                        "type": "anomaly",
+                        "title": "Biggest Single Expense",
+                        "description": f"\"{biggest_desc}\" at ${biggest_amt:.2f} accounts for {pct_of_total:.0f}% of your total spending this month. Make sure large one-time expenses don't become a pattern."
+                    })
+
+    # --- NEW: Spending Diversity Score ---
+    if categories:
+        expense_cats = [c for c in categories if c.get("expenses", 0) > 0]
+        if len(expense_cats) >= 3 and total_expenses > 0:
+            # Calculate how concentrated spending is (HHI-style)
+            shares = [(c["expenses"] / total_expenses) for c in expense_cats]
+            hhi = sum(s * s for s in shares)
+            # HHI ranges from 1/n (perfectly spread) to 1.0 (all in one category)
+            # Convert to a 0-100 "diversity" score where 100 = perfectly spread
+            min_hhi = 1.0 / len(expense_cats)
+            diversity = max(0, (1.0 - hhi) / (1.0 - min_hhi)) * 100 if len(expense_cats) > 1 else 0
+
+            if diversity < 40:
+                top_names = ", ".join(c["category_name"] for c in sorted(expense_cats, key=lambda x: x["expenses"], reverse=True)[:2])
+                insights.append({
+                    "type": "trend",
+                    "title": "Spending Is Concentrated",
+                    "description": f"Your spending diversity score is {diversity:.0f}/100. Most of your money goes to {top_names}. A more balanced spread can reveal savings opportunities."
+                })
+            elif diversity > 75:
+                insights.append({
+                    "type": "positive",
+                    "title": "Well-Balanced Spending",
+                    "description": f"Your spending diversity score is {diversity:.0f}/100. Expenses are spread across {len(expense_cats)} categories, suggesting a balanced lifestyle."
+                })
+
     # Positive if nothing concerning
     if not insights:
         insights.append({
@@ -493,7 +647,7 @@ def _generate_basic_insights(summary: Dict[str, Any]) -> List[Dict[str, str]]:
             "description": "Your spending is within reasonable limits. Keep monitoring your budget to maintain good financial health."
         })
 
-    return insights[:5]
+    return insights[:8]
 
 
 def ai_review_transactions(
@@ -630,6 +784,450 @@ Return a JSON object with an "results" array:
                 enhanced_transactions.append(enhanced)
 
     return enhanced_transactions
+
+
+def generate_enhanced_spending_insights(
+    summary: Dict[str, Any],
+    transactions: List[Dict[str, Any]],
+    previous_month_summary: Optional[Dict[str, Any]] = None,
+    cash_flow_data: Optional[List[Dict[str, Any]]] = None,
+    subscriptions: Optional[List[Dict[str, Any]]] = None,
+    api_key: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Enhanced spending insights combining core insights, trend analysis, and subscription tips.
+
+    Returns:
+        Dict with 'insights', 'trend_analysis', 'subscription_suggestions'
+    """
+    # Core insights
+    insights = generate_spending_insights(summary, transactions, previous_month_summary, api_key)
+
+    result: Dict[str, Any] = {"insights": insights}
+
+    # Trend analysis if we have enough data
+    if cash_flow_data and len(cash_flow_data) >= 2:
+        trend = ai_analyze_spending_trends(cash_flow_data, api_key)
+        if trend:
+            result["trend_analysis"] = trend
+
+    # Subscription optimization suggestions
+    if subscriptions:
+        active_subs = [s for s in subscriptions if s.get("is_active", True)]
+        if active_subs:
+            total_monthly = 0.0
+            suggestions = []
+            for sub in active_subs:
+                amount = abs(sub.get("amount", 0))
+                freq = sub.get("frequency", "monthly")
+                monthly = amount if freq == "monthly" else amount / 12 if freq == "yearly" else amount
+                total_monthly += monthly
+
+            if total_monthly > 50:
+                suggestions.append({
+                    "type": "tip",
+                    "title": "Subscription Audit",
+                    "description": f"You're spending ${total_monthly:.2f}/month on {len(active_subs)} subscriptions (${total_monthly * 12:.2f}/year). Review each for value."
+                })
+
+            # Flag expensive individual subscriptions
+            for sub in active_subs:
+                amount = abs(sub.get("amount", 0))
+                if amount > 30:
+                    suggestions.append({
+                        "type": "tip",
+                        "title": f"Review {sub.get('name', 'Subscription')}",
+                        "description": f"At ${amount:.2f}/{sub.get('frequency', 'month')}, check if you're fully utilizing this service."
+                    })
+
+            if suggestions:
+                result["subscription_suggestions"] = suggestions[:5]
+
+    return result
+
+
+def generate_dashboard_insights(
+    networth_data: Dict[str, Any],
+    networth_history: List[Dict[str, Any]],
+    portfolio_data: List[Dict[str, Any]],
+    property_data: List[Dict[str, Any]],
+    liability_data: List[Dict[str, Any]],
+    account_summary: Dict[str, Any],
+    api_key: Optional[str] = None
+) -> List[Dict[str, str]]:
+    """
+    Generate AI-powered dashboard insights covering the holistic financial picture.
+
+    Returns:
+        List of insight dicts with 'type', 'title', 'description'
+    """
+    client = get_openai_client(api_key)
+    if not client:
+        logger.info("AI not available, using rule-based dashboard insights")
+        return _generate_basic_dashboard_insights(
+            networth_data, portfolio_data, property_data, liability_data, account_summary
+        )
+
+    # Build context
+    net_worth = networth_data.get("net_worth", 0)
+    total_assets = networth_data.get("total_assets", 0)
+    total_liabilities = networth_data.get("total_liabilities", 0)
+    breakdown = networth_data.get("breakdown", {})
+
+    # Portfolio summary
+    portfolio_text = ""
+    if portfolio_data:
+        top_holdings = sorted(portfolio_data, key=lambda x: abs(x.get("current_value", 0)), reverse=True)[:5]
+        portfolio_text = "Top Holdings:\n" + "\n".join([
+            f"- {h.get('ticker', '?')}: ${h.get('current_value', 0):.2f} (P&L: {h.get('gain_percent', 0):.1f}%)"
+            for h in top_holdings
+        ])
+
+    # Property summary
+    property_text = ""
+    if property_data:
+        property_text = "Properties:\n" + "\n".join([
+            f"- {p.get('name', '?')}: Value ${p.get('current_value', 0):.2f}, Equity ${p.get('equity', 0):.2f}"
+            for p in property_data
+        ])
+
+    # Net worth history
+    history_text = ""
+    if networth_history and len(networth_history) >= 2:
+        recent = networth_history[-1]
+        older = networth_history[0]
+        change = recent.get("net_worth", 0) - older.get("net_worth", 0)
+        history_text = f"Net worth change over {len(networth_history)} data points: ${change:+,.2f}"
+
+    system_prompt = """You are a financial advisor providing a holistic view of someone's finances.
+Analyze their complete financial picture and provide actionable insights.
+
+Guidelines:
+- Cover net worth trends, portfolio concentration, debt ratios, cash reserves, real estate equity
+- Be specific with numbers
+- Mix warnings with positive reinforcement"""
+
+    user_prompt = f"""Analyze this financial snapshot and provide 4-6 insights.
+
+NET WORTH: ${net_worth:,.2f}
+- Total Assets: ${total_assets:,.2f}
+- Total Liabilities: ${total_liabilities:,.2f}
+- Cash: ${breakdown.get('cash_accounts', 0):,.2f}
+- Investments: ${breakdown.get('investments', 0):,.2f}
+- Real Estate: ${breakdown.get('real_estate', 0):,.2f}
+
+{portfolio_text}
+{property_text}
+{history_text}
+
+Provide insights as JSON:
+{{"insights": [
+  {{"type": "warning|tip|positive|milestone|trend", "title": "Brief Title", "description": "Detailed explanation"}}
+]}}
+
+Types: warning, tip, positive, milestone, trend
+Return ONLY the JSON object."""
+
+    try:
+        result_text = _make_openai_request(
+            client,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7,
+            max_tokens=1200,
+            response_format={"type": "json_object"}
+        )
+
+        parsed = _parse_json_response(result_text)
+        if isinstance(parsed, dict):
+            insights = parsed.get("insights", [])
+        else:
+            insights = parsed
+
+        validated = []
+        for insight in insights:
+            if isinstance(insight, dict):
+                insight_type = insight.get("type", "tip")
+                if insight_type not in ["warning", "tip", "positive", "milestone", "trend"]:
+                    insight_type = "tip"
+                validated.append({
+                    "type": insight_type,
+                    "title": str(insight.get("title", "Insight"))[:50],
+                    "description": str(insight.get("description", ""))[:300]
+                })
+
+        if validated:
+            return validated[:6]
+
+        return _generate_basic_dashboard_insights(
+            networth_data, portfolio_data, property_data, liability_data, account_summary
+        )
+
+    except Exception as e:
+        logger.error(f"Dashboard insights error: {e}")
+        return _generate_basic_dashboard_insights(
+            networth_data, portfolio_data, property_data, liability_data, account_summary
+        )
+
+
+def _generate_basic_dashboard_insights(
+    networth_data: Dict[str, Any],
+    portfolio_data: List[Dict[str, Any]],
+    property_data: List[Dict[str, Any]],
+    liability_data: List[Dict[str, Any]],
+    account_summary: Dict[str, Any],
+) -> List[Dict[str, str]]:
+    """Rule-based dashboard insights fallback."""
+    insights = []
+    total_assets = networth_data.get("total_assets", 0)
+    total_liabilities = networth_data.get("total_liabilities", 0)
+    net_worth = networth_data.get("net_worth", 0)
+    breakdown = networth_data.get("breakdown", {})
+    cash = breakdown.get("cash_accounts", 0)
+
+    # Debt-to-asset ratio
+    if total_assets > 0:
+        debt_ratio = total_liabilities / total_assets
+        if debt_ratio > 0.5:
+            insights.append({
+                "type": "warning",
+                "title": "High Debt-to-Asset Ratio",
+                "description": f"Your debt is {debt_ratio:.0%} of your assets (${total_liabilities:,.2f} / ${total_assets:,.2f}). Consider a debt paydown plan."
+            })
+
+    # Portfolio concentration
+    if portfolio_data:
+        total_portfolio = sum(abs(h.get("current_value", 0)) for h in portfolio_data)
+        if total_portfolio > 0:
+            for h in portfolio_data:
+                val = abs(h.get("current_value", 0))
+                pct = val / total_portfolio * 100
+                if pct > 40:
+                    insights.append({
+                        "type": "warning",
+                        "title": f"Concentration Risk: {h.get('ticker', '?')}",
+                        "description": f"{h.get('ticker', '?')} represents {pct:.0f}% of your portfolio. Consider diversifying to reduce risk."
+                    })
+                    break
+
+    # Emergency fund check (cash < estimated 3 months expenses)
+    # Estimate monthly expenses as ~70% of non-investment assets if no budget data
+    estimated_monthly = total_assets * 0.03 if total_assets > 0 else 3000
+    if cash < estimated_monthly * 3 and cash > 0:
+        insights.append({
+            "type": "tip",
+            "title": "Build Your Emergency Fund",
+            "description": f"Your cash reserves (${cash:,.2f}) may not cover 3 months of expenses. Aim for ${estimated_monthly * 3:,.0f} in readily accessible funds."
+        })
+
+    # Property equity milestone
+    for prop in property_data:
+        equity = prop.get("equity", 0)
+        purchase = prop.get("purchase_price", 0)
+        if purchase > 0 and equity > purchase * 0.5:
+            insights.append({
+                "type": "positive",
+                "title": f"Strong Equity: {prop.get('name', 'Property')}",
+                "description": f"Your equity in {prop.get('name', 'this property')} (${equity:,.2f}) exceeds 50% of purchase price."
+            })
+
+    # Net worth milestones
+    milestones = [1_000_000, 500_000, 100_000]
+    for milestone in milestones:
+        if net_worth >= milestone:
+            label = f"${milestone / 1000:.0f}K" if milestone < 1_000_000 else f"${milestone / 1_000_000:.0f}M"
+            insights.append({
+                "type": "milestone",
+                "title": f"Net Worth Over {label}",
+                "description": f"Your net worth of ${net_worth:,.2f} has crossed the {label} milestone. Keep building!"
+            })
+            break
+
+    if not insights:
+        insights.append({
+            "type": "positive",
+            "title": "Financial Overview",
+            "description": f"Your net worth is ${net_worth:,.2f} with ${total_assets:,.2f} in assets. Keep tracking to spot trends."
+        })
+
+    return insights[:6]
+
+
+def generate_financial_stories(
+    networth_data: Dict[str, Any],
+    budget_summary: Optional[Dict[str, Any]] = None,
+    portfolio_data: Optional[List[Dict[str, Any]]] = None,
+    property_data: Optional[List[Dict[str, Any]]] = None,
+    recent_transactions: Optional[List[Dict[str, Any]]] = None,
+    seed: Optional[int] = None,
+    api_key: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    Generate engaging financial narratives connecting different data points.
+
+    Returns:
+        List of story dicts with 'type', 'emoji', 'headline', 'narrative', 'data_points'
+    """
+    client = get_openai_client(api_key)
+    if not client:
+        logger.info("AI not available, using rule-based financial stories")
+        return _generate_basic_stories(networth_data, budget_summary, portfolio_data, property_data)
+
+    # Build context
+    net_worth = networth_data.get("net_worth", 0)
+    breakdown = networth_data.get("breakdown", {})
+
+    context_parts = [f"Net Worth: ${net_worth:,.2f}"]
+    context_parts.append(f"Cash: ${breakdown.get('cash_accounts', 0):,.2f}")
+    context_parts.append(f"Investments: ${breakdown.get('investments', 0):,.2f}")
+    context_parts.append(f"Real Estate: ${breakdown.get('real_estate', 0):,.2f}")
+
+    if budget_summary:
+        income = budget_summary.get("total_income", 0)
+        expenses = budget_summary.get("total_expenses", 0)
+        context_parts.append(f"Monthly Income: ${income:,.2f}")
+        context_parts.append(f"Monthly Expenses: ${expenses:,.2f}")
+
+    if portfolio_data:
+        top = sorted(portfolio_data, key=lambda x: abs(x.get("current_value", 0)), reverse=True)[:3]
+        context_parts.append("Top holdings: " + ", ".join(
+            f"{h.get('ticker', '?')} (${h.get('current_value', 0):,.2f}, {h.get('gain_percent', 0):+.1f}%)" for h in top
+        ))
+
+    if property_data:
+        context_parts.append("Properties: " + ", ".join(
+            f"{p.get('name', '?')} (${p.get('current_value', 0):,.2f})" for p in property_data
+        ))
+
+    system_prompt = """You are a creative financial storyteller. Turn dry financial data into 2-3 engaging,
+relatable narratives that help people understand their money. Use metaphors, comparisons, and perspective shifts.
+Be warm, encouraging, and insightful. Each story should connect multiple data points in an interesting way."""
+
+    seed_text = f"\nVariation seed: {seed}" if seed else ""
+
+    user_prompt = f"""Create 2-3 engaging financial stories from this data:
+
+{chr(10).join(context_parts)}
+{seed_text}
+
+Return JSON:
+{{"stories": [
+  {{
+    "type": "comparison|milestone|perspective|growth",
+    "emoji": "single emoji",
+    "headline": "Catchy 5-8 word headline",
+    "narrative": "2-3 sentence engaging narrative connecting data points",
+    "data_points": ["key stat 1", "key stat 2"]
+  }}
+]}}
+
+Make each story feel different - one could be a comparison, another a milestone, another a perspective shift.
+Return ONLY the JSON object."""
+
+    try:
+        result_text = _make_openai_request(
+            client,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.85,
+            max_tokens=800,
+            response_format={"type": "json_object"}
+        )
+
+        parsed = _parse_json_response(result_text)
+        if isinstance(parsed, dict):
+            stories = parsed.get("stories", [])
+        else:
+            stories = parsed
+
+        validated = []
+        for story in stories:
+            if isinstance(story, dict):
+                validated.append({
+                    "type": story.get("type", "perspective"),
+                    "emoji": str(story.get("emoji", "💡"))[:2],
+                    "headline": str(story.get("headline", "Your Financial Story"))[:60],
+                    "narrative": str(story.get("narrative", ""))[:400],
+                    "data_points": story.get("data_points", [])[:4],
+                })
+
+        if validated:
+            return validated[:3]
+
+        return _generate_basic_stories(networth_data, budget_summary, portfolio_data, property_data)
+
+    except Exception as e:
+        logger.error(f"Financial stories error: {e}")
+        return _generate_basic_stories(networth_data, budget_summary, portfolio_data, property_data)
+
+
+def _generate_basic_stories(
+    networth_data: Dict[str, Any],
+    budget_summary: Optional[Dict[str, Any]] = None,
+    portfolio_data: Optional[List[Dict[str, Any]]] = None,
+    property_data: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
+    """Rule-based financial stories fallback."""
+    stories = []
+    net_worth = networth_data.get("net_worth", 0)
+    breakdown = networth_data.get("breakdown", {})
+    investments = breakdown.get("investments", 0)
+
+    # Story 1: Investment gains vs spending
+    if budget_summary and portfolio_data:
+        total_gain = sum(h.get("unrealized_gain", 0) or 0 for h in portfolio_data)
+        expenses = budget_summary.get("total_expenses", 0)
+        if total_gain > 0 and expenses > 0:
+            months_covered = total_gain / expenses if expenses > 0 else 0
+            stories.append({
+                "type": "comparison",
+                "emoji": "📈",
+                "headline": "Your Investments Are Working for You",
+                "narrative": f"Your investment gains of ${total_gain:,.2f} could cover {months_covered:.1f} months of expenses at your current spending rate of ${expenses:,.2f}/month.",
+                "data_points": [f"${total_gain:,.2f} gains", f"${expenses:,.2f}/mo expenses"],
+            })
+
+    # Story 2: Days of freedom
+    if budget_summary:
+        income = budget_summary.get("total_income", 0)
+        expenses = budget_summary.get("total_expenses", 0)
+        if income > 0 and expenses > 0:
+            savings = income - expenses
+            if savings > 0:
+                daily_cost = expenses / 30
+                freedom_days = savings / daily_cost if daily_cost > 0 else 0
+                stories.append({
+                    "type": "perspective",
+                    "emoji": "🏖️",
+                    "headline": "Your Monthly Savings in Perspective",
+                    "narrative": f"Each month you save ${savings:,.2f}, which buys you {freedom_days:.0f} days of expenses covered. That's like earning a {freedom_days:.0f}-day financial cushion every month.",
+                    "data_points": [f"${savings:,.2f} saved", f"{freedom_days:.0f} days of freedom"],
+                })
+
+    # Story 3: Net worth context
+    if net_worth > 0:
+        stories.append({
+            "type": "milestone",
+            "emoji": "🎯",
+            "headline": "Your Net Worth Journey",
+            "narrative": f"Your net worth of ${net_worth:,.2f} is spread across cash (${breakdown.get('cash_accounts', 0):,.2f}), investments (${investments:,.2f}), and real estate (${breakdown.get('real_estate', 0):,.2f}). Each piece plays a role in your financial security.",
+            "data_points": [f"${net_worth:,.2f} net worth"],
+        })
+
+    if not stories:
+        stories.append({
+            "type": "growth",
+            "emoji": "🌱",
+            "headline": "Your Financial Journey Begins",
+            "narrative": "Every financial journey starts with tracking. You've taken the first step by monitoring your finances. Keep adding data to unlock personalized financial stories.",
+            "data_points": [],
+        })
+
+    return stories[:3]
 
 
 def ai_analyze_spending_trends(

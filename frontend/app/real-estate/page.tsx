@@ -1,17 +1,18 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Building2 } from "lucide-react"
+import { Plus, Building2, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PropertySummary } from "@/components/real-estate/property-summary"
 import { PropertyCard } from "@/components/real-estate/property-card"
 import { PropertyForm } from "@/components/real-estate/property-form"
-import { Property, fetchProperties } from "@/lib/api"
+import { Property, fetchProperties, refreshPropertyValues } from "@/lib/api"
 
 export default function RealEstatePage() {
     const [properties, setProperties] = React.useState<Property[]>([])
     const [showAddDialog, setShowAddDialog] = React.useState(false)
     const [isLoading, setIsLoading] = React.useState(true)
+    const [isRefreshing, setIsRefreshing] = React.useState(false)
 
     const loadProperties = async () => {
         setIsLoading(true)
@@ -23,6 +24,16 @@ export default function RealEstatePage() {
     React.useEffect(() => {
         loadProperties()
     }, [])
+
+    const handleRefreshAll = async () => {
+        setIsRefreshing(true)
+        await refreshPropertyValues()
+        await loadProperties()
+        setIsRefreshing(false)
+    }
+
+    // Check if any property has a valuation provider
+    const hasValuationProperties = properties.some(p => p.valuation_provider)
 
     // Calculate summary metrics
     const metrics = React.useMemo(() => {
@@ -42,10 +53,23 @@ export default function RealEstatePage() {
                     <h2 className="text-3xl font-bold tracking-tight">Real Estate</h2>
                     <p className="text-sm text-muted-foreground mt-1">Track your properties and build equity</p>
                 </div>
-                <Button onClick={() => setShowAddDialog(true)} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Add Property
-                </Button>
+                <div className="flex items-center gap-2">
+                    {hasValuationProperties && (
+                        <Button
+                            variant="outline"
+                            onClick={handleRefreshAll}
+                            disabled={isRefreshing}
+                            className="gap-2"
+                        >
+                            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                            {isRefreshing ? "Refreshing..." : "Refresh All Values"}
+                        </Button>
+                    )}
+                    <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Add Property
+                    </Button>
+                </div>
             </div>
 
             {/* Summary Cards */}

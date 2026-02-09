@@ -28,6 +28,7 @@ class SettingResponse(BaseModel):
 # Known settings keys
 KNOWN_SETTINGS = {
     "openai_api_key": {"is_secret": True, "description": "OpenAI API Key for AI features"},
+    "rentcast_api_key": {"is_secret": True, "description": "RentCast API key for property valuations (free: 50 calls/month)"},
     "default_currency": {"is_secret": False, "description": "Default currency for new items"},
 }
 

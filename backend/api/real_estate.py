@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from core.database import get_session
-from models import Property, Mortgage
+from models import Property, Mortgage, PropertyValuationCache
 
 router = APIRouter(prefix="/properties", tags=["Real Estate"])
 
@@ -22,6 +22,8 @@ class PropertyCreate(BaseModel):
     purchase_date: Optional[str] = None
     current_value: float
     currency: str = "USD"
+    provider_property_id: Optional[str] = None
+    valuation_provider: Optional[str] = None
 
 
 class PropertyUpdate(BaseModel):
@@ -32,6 +34,8 @@ class PropertyUpdate(BaseModel):
     purchase_date: Optional[str] = None
     current_value: Optional[float] = None
     currency: Optional[str] = None
+    provider_property_id: Optional[str] = None
+    valuation_provider: Optional[str] = None
 
 
 class MortgageCreate(BaseModel):
@@ -70,7 +74,13 @@ def list_properties(session: Session = Depends(get_session)):
         equity = prop.current_value - total_mortgage_balance
         monthly_payments = sum(m.monthly_payment for m in mortgages if m.is_active)
 
-        results.append({
+        # Get cached valuation data (no API call)
+        cached_val = session.exec(
+            select(PropertyValuationCache)
+            .where(PropertyValuationCache.property_id == prop.id)
+        ).first()
+
+        entry = {
             "id": prop.id,
             "name": prop.name,
             "address": prop.address,
@@ -79,6 +89,8 @@ def list_properties(session: Session = Depends(get_session)):
             "purchase_date": prop.purchase_date,
             "current_value": prop.current_value,
             "currency": prop.currency,
+            "provider_property_id": getattr(prop, "provider_property_id", None),
+            "valuation_provider": getattr(prop, "valuation_provider", None),
             "total_mortgage_balance": total_mortgage_balance,
             "equity": equity,
             "monthly_payments": monthly_payments,
@@ -86,7 +98,21 @@ def list_properties(session: Session = Depends(get_session)):
             "appreciation": prop.current_value - prop.purchase_price,
             "appreciation_percent": ((prop.current_value - prop.purchase_price) / prop.purchase_price * 100)
             if prop.purchase_price > 0 else 0,
-        })
+        }
+
+        if cached_val:
+            entry["estimated_rent_monthly"] = cached_val.estimated_rent_monthly
+            entry["value_range_low"] = cached_val.value_range_low
+            entry["value_range_high"] = cached_val.value_range_high
+            entry["rent_range_low"] = cached_val.rent_range_low
+            entry["rent_range_high"] = cached_val.rent_range_high
+            entry["bedrooms"] = cached_val.bedrooms
+            entry["bathrooms"] = cached_val.bathrooms
+            entry["square_footage"] = cached_val.square_footage
+            entry["year_built"] = cached_val.year_built
+            entry["valuation_fetched_at"] = cached_val.fetched_at.isoformat() if cached_val.fetched_at else None
+
+        results.append(entry)
 
     return results
 
@@ -102,6 +128,8 @@ def create_property(data: PropertyCreate, session: Session = Depends(get_session
         purchase_date=data.purchase_date,
         current_value=data.current_value,
         currency=data.currency,
+        provider_property_id=data.provider_property_id,
+        valuation_provider=data.valuation_provider,
     )
     session.add(prop)
     session.commit()
@@ -115,6 +143,51 @@ def create_property(data: PropertyCreate, session: Session = Depends(get_session
         "monthly_payments": 0,
     }
 
+
+# --- Valuation Endpoints (must be before /{property_id} to avoid route conflicts) ---
+
+def _load_rentcast_key(session: Session):
+    """Load RentCast API key from settings into module cache."""
+    from api.settings import get_setting_value
+    from services.property_valuation import set_rentcast_api_key
+    key = get_setting_value(session, "rentcast_api_key")
+    if key:
+        set_rentcast_api_key(key)
+
+
+@router.get("/valuation/status")
+def valuation_status(session: Session = Depends(get_session)):
+    """Check if property valuation APIs are configured."""
+    _load_rentcast_key(session)
+    from services.property_valuation import is_rentcast_available
+    return {"rentcast_available": is_rentcast_available()}
+
+
+@router.get("/valuation/search")
+async def valuation_search(q: str, session: Session = Depends(get_session)):
+    """Search for a property address via RentCast. Uses 1 API call."""
+    _load_rentcast_key(session)
+    from services.property_valuation import search_address
+    results = await search_address(q)
+    return {"results": results}
+
+
+@router.post("/refresh-values")
+async def refresh_all_property_values(session: Session = Depends(get_session)):
+    """Refresh valuations for all properties with a provider set.
+
+    Uses 2 API calls per property.
+    """
+    _load_rentcast_key(session)
+    from services.property_valuation import is_rentcast_available, refresh_all_valuations
+    if not is_rentcast_available():
+        raise HTTPException(status_code=400, detail="RentCast API key not configured. Add it in Settings.")
+
+    result = await refresh_all_valuations(session)
+    return result
+
+
+# --- Per-property endpoints ---
 
 @router.get("/{property_id}")
 def get_property(property_id: int, session: Session = Depends(get_session)):
@@ -168,6 +241,10 @@ def update_property(
         prop.current_value = data.current_value
     if data.currency is not None:
         prop.currency = data.currency
+    if data.provider_property_id is not None:
+        prop.provider_property_id = data.provider_property_id
+    if data.valuation_provider is not None:
+        prop.valuation_provider = data.valuation_provider
 
     prop.updated_at = datetime.utcnow()
     session.add(prop)
@@ -207,6 +284,61 @@ def delete_property(property_id: int, session: Session = Depends(get_session)):
     session.delete(prop)
     session.commit()
     return {"message": "Property deleted", "id": property_id}
+
+
+# --- Per-property Valuation Endpoints ---
+
+@router.get("/{property_id}/valuation")
+async def get_property_valuation(property_id: int, refresh: bool = False, session: Session = Depends(get_session)):
+    """Get valuation for a property. Returns cached data by default.
+
+    Set refresh=true to force a fresh API call (uses 2 API calls).
+    """
+    prop = session.get(Property, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Property not found")
+
+    _load_rentcast_key(session)
+
+    if not refresh:
+        from services.property_valuation import get_cached_valuation
+        cached = get_cached_valuation(property_id, session)
+        if cached and not cached.get("is_stale"):
+            return cached
+
+    from services.property_valuation import get_full_valuation
+    result = await get_full_valuation(prop.address, session, property_id)
+    if not result:
+        from services.property_valuation import get_cached_valuation
+        cached = get_cached_valuation(property_id, session)
+        if cached:
+            return cached
+        return {"error": "Could not fetch valuation. Check API key in Settings."}
+
+    return result
+
+
+@router.get("/{property_id}/value-history")
+def get_property_value_history(property_id: int, session: Session = Depends(get_session)):
+    """Get historical value data for a property (no API call)."""
+    prop = session.get(Property, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Property not found")
+
+    from services.property_valuation import get_value_history
+    history = get_value_history(property_id, session)
+
+    # Also add the purchase price as the first data point if we have a purchase date
+    if prop.purchase_date and prop.purchase_price:
+        has_purchase = any(h["date"] == prop.purchase_date for h in history)
+        if not has_purchase:
+            history.insert(0, {
+                "date": prop.purchase_date,
+                "estimated_value": prop.purchase_price,
+                "source": "purchase",
+            })
+
+    return {"property_id": property_id, "history": history}
 
 
 # Mortgage CRUD
@@ -348,6 +480,8 @@ def _property_to_dict(prop: Property) -> dict:
         "purchase_date": prop.purchase_date,
         "current_value": prop.current_value,
         "currency": prop.currency,
+        "provider_property_id": getattr(prop, "provider_property_id", None),
+        "valuation_provider": getattr(prop, "valuation_provider", None),
         "created_at": prop.created_at.isoformat() if prop.created_at else None,
         "updated_at": prop.updated_at.isoformat() if prop.updated_at else None,
     }

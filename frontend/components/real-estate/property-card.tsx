@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { Building2, MapPin, MoreHorizontal, Pencil, Trash2, Plus, TrendingUp, TrendingDown, Home, Building, TreePine, Warehouse } from "lucide-react"
+import { Building2, MapPin, MoreHorizontal, Pencil, Trash2, Plus, TrendingUp, TrendingDown, Home, Building, TreePine, Warehouse, RefreshCw, BarChart3, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
     DropdownMenu,
@@ -21,9 +22,10 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Property, deleteProperty } from "@/lib/api"
+import { Property, deleteProperty, getPropertyValuation } from "@/lib/api"
 import { MortgageForm } from "@/components/real-estate/mortgage-form"
 import { PropertyForm } from "@/components/real-estate/property-form"
+import { ValueHistoryChart } from "@/components/real-estate/value-history-chart"
 import { useSettings } from "@/lib/settings-context"
 
 type PropertyCardProps = {
@@ -50,7 +52,9 @@ export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
     const [showEditDialog, setShowEditDialog] = React.useState(false)
     const [showMortgageDialog, setShowMortgageDialog] = React.useState(false)
+    const [showHistoryDialog, setShowHistoryDialog] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
+    const [isRefreshing, setIsRefreshing] = React.useState(false)
     const { formatCurrency } = useSettings()
 
     const handleDelete = async () => {
@@ -63,9 +67,22 @@ export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
         }
     }
 
+    const handleRefreshValue = async () => {
+        setIsRefreshing(true)
+        await getPropertyValuation(property.id, true)
+        setIsRefreshing(false)
+        onUpdate()
+    }
+
     const appreciationPercent = property.appreciation_percent || 0
     const isPositiveAppreciation = appreciationPercent >= 0
     const equity = property.equity || property.current_value
+
+    // Rental yield calculation
+    const estimatedRent = property.estimated_rent_monthly
+    const grossYield = estimatedRent && property.current_value > 0
+        ? (estimatedRent * 12) / property.current_value * 100
+        : null
 
     return (
         <>
@@ -98,6 +115,19 @@ export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
                                 <Plus className="mr-2 h-4 w-4" />
                                 Add Mortgage
                             </DropdownMenuItem>
+                            {property.valuation_provider && (
+                                <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={handleRefreshValue} disabled={isRefreshing}>
+                                        <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                                        {isRefreshing ? "Refreshing..." : "Refresh Value"}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShowHistoryDialog(true)}>
+                                        <BarChart3 className="mr-2 h-4 w-4" />
+                                        Value History
+                                    </DropdownMenuItem>
+                                </>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 onClick={() => setShowDeleteDialog(true)}
@@ -112,9 +142,16 @@ export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
                 <CardContent className="space-y-4">
                     {/* Type and Appreciation */}
                     <div className="flex items-center justify-between">
-                        <span className="inline-flex items-center rounded-md bg-muted/50 px-2 py-1 text-xs font-medium capitalize">
-                            {property.property_type}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center rounded-md bg-muted/50 px-2 py-1 text-xs font-medium capitalize">
+                                {property.property_type}
+                            </span>
+                            {property.valuation_provider && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground">
+                                    RentCast
+                                </Badge>
+                            )}
+                        </div>
                         <div className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${isPositiveAppreciation
                                 ? "bg-success/10 text-gain"
                                 : "bg-destructive/10 text-loss"
@@ -141,6 +178,29 @@ export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
                             </p>
                         </div>
                     </div>
+
+                    {/* Rental Estimate */}
+                    {estimatedRent && estimatedRent > 0 && (
+                        <div className="pt-3 border-t border-border/50 space-y-2">
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <DollarSign className="h-3 w-3" />
+                                    Rental Estimate
+                                </span>
+                                <span className="text-sm font-medium tabular-nums">
+                                    {formatCurrency(estimatedRent)}/mo
+                                </span>
+                            </div>
+                            {grossYield !== null && (
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs text-muted-foreground">Gross Yield</span>
+                                    <span className={`text-sm font-medium tabular-nums ${grossYield >= 5 ? "text-gain" : "text-muted-foreground"}`}>
+                                        {grossYield.toFixed(1)}%
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Mortgage Info */}
                     {property.total_mortgage_balance && property.total_mortgage_balance > 0 && (
@@ -193,6 +253,15 @@ export function PropertyCard({ property, onUpdate }: PropertyCardProps) {
                 open={showMortgageDialog}
                 onOpenChange={setShowMortgageDialog}
                 onSaved={onUpdate}
+            />
+
+            {/* Value History Dialog */}
+            <ValueHistoryChart
+                propertyId={property.id}
+                propertyName={property.name}
+                purchasePrice={property.purchase_price}
+                open={showHistoryDialog}
+                onOpenChange={setShowHistoryDialog}
             />
 
             {/* Delete Confirmation */}

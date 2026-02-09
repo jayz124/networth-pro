@@ -88,6 +88,36 @@ class Property(BaseModel, table=True):
     purchase_date: Optional[str] = None
     current_value: float
     currency: str = Field(default="USD")
+    provider_property_id: Optional[str] = None  # RentCast property ID
+    valuation_provider: Optional[str] = None  # "rentcast" or None (manual)
+
+
+class PropertyValuationCache(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    property_id: int = Field(foreign_key="property.id", index=True)
+    provider: str = Field(default="rentcast")  # rentcast
+    estimated_value: Optional[float] = None
+    estimated_rent_monthly: Optional[float] = None
+    confidence: Optional[str] = None
+    value_range_low: Optional[float] = None
+    value_range_high: Optional[float] = None
+    rent_range_low: Optional[float] = None
+    rent_range_high: Optional[float] = None
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[float] = None
+    square_footage: Optional[int] = None
+    year_built: Optional[int] = None
+    currency: str = Field(default="USD")
+    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PropertyValueHistory(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    property_id: int = Field(foreign_key="property.id", index=True)
+    date: str  # YYYY-MM-DD
+    estimated_value: float
+    source: str = Field(default="rentcast")  # rentcast, manual, tax_assessment
+    currency: str = Field(default="USD")
 
 
 class Mortgage(BaseModel, table=True):

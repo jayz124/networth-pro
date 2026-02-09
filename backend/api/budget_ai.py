@@ -13,6 +13,7 @@ from services.categorizer import categorize_transaction, detect_recurring_patter
 from services.ai_insights import (
     ai_categorize_transaction,
     generate_spending_insights,
+    generate_enhanced_spending_insights,
     is_ai_available,
     set_api_key,
     ai_analyze_spending_trends,
@@ -141,10 +142,13 @@ def auto_categorize(
 def get_insights(
     session: Session = Depends(get_session),
     months: int = 1,
+    enhanced: bool = False,
 ):
     """
     Get AI-generated spending insights and recommendations.
     Uses rule-based insights if AI is unavailable.
+
+    When enhanced=True, also returns trend_analysis and subscription_suggestions.
     """
     # Load API key from settings
     api_key = load_openai_key(session)
@@ -225,16 +229,74 @@ def get_insights(
         for t in transactions
     ]
 
-    insights = generate_spending_insights(summary, txn_dicts, prev_summary)
+    if enhanced:
+        # Fetch cash flow data (last 6 months of monthly aggregates)
+        cash_flow_data = []
+        for i in range(6, 0, -1):
+            m = today.month - i
+            y = today.year
+            while m <= 0:
+                m += 12
+                y -= 1
+            m_start = datetime(y, m, 1)
+            if m == 12:
+                m_end = datetime(y + 1, 1, 1) - timedelta(days=1)
+            else:
+                m_end = datetime(y, m + 1, 1) - timedelta(days=1)
 
-    return {
-        "insights": insights,
-        "ai_powered": is_ai_available(api_key),
-        "period": {
-            "start": start_date,
-            "end": end_date,
-        },
-    }
+            m_txns = session.exec(
+                select(Transaction)
+                .where(Transaction.date >= m_start)
+                .where(Transaction.date <= m_end)
+            ).all()
+
+            if m_txns:
+                m_income = sum(t.amount for t in m_txns if t.amount >= 0)
+                m_expenses = sum(abs(t.amount) for t in m_txns if t.amount < 0)
+                cash_flow_data.append({
+                    "month": m_start.strftime("%Y-%m"),
+                    "total_income": m_income,
+                    "total_expenses": m_expenses,
+                    "net": m_income - m_expenses,
+                })
+
+        # Fetch active subscriptions
+        subs = session.exec(
+            select(Subscription).where(Subscription.is_active == True)
+        ).all()
+        subscriptions = [
+            {"name": s.name, "amount": s.amount, "frequency": s.frequency, "is_active": s.is_active}
+            for s in subs
+        ]
+
+        result = generate_enhanced_spending_insights(
+            summary, txn_dicts, prev_summary,
+            cash_flow_data=cash_flow_data if cash_flow_data else None,
+            subscriptions=subscriptions if subscriptions else None,
+            api_key=api_key,
+        )
+
+        response = {
+            "insights": result.get("insights", []),
+            "ai_powered": is_ai_available(api_key),
+            "period": {"start": start_date, "end": end_date},
+        }
+        if "trend_analysis" in result:
+            response["trend_analysis"] = result["trend_analysis"]
+        if "subscription_suggestions" in result:
+            response["subscription_suggestions"] = result["subscription_suggestions"]
+        return response
+    else:
+        insights = generate_spending_insights(summary, txn_dicts, prev_summary)
+
+        return {
+            "insights": insights,
+            "ai_powered": is_ai_available(api_key),
+            "period": {
+                "start": start_date,
+                "end": end_date,
+            },
+        }
 
 
 @router.post("/budget/ai/detect-subscriptions")
