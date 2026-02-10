@@ -1,15 +1,25 @@
 """
 Settings API - Application settings including API keys.
 """
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+import json
+import logging
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import JSONResponse
+from sqlmodel import Session, SQLModel, select
 from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 
-from core.database import get_session
-from models import AppSettings
+from core.database import get_session, engine, init_db
+from models import (
+    AppSettings, Account, Liability, BalanceSnapshot, Portfolio, PortfolioHolding,
+    SecurityInfo, PriceCache, Property, PropertyValuationCache, PropertyValueHistory,
+    Mortgage, RetirementPlan, BudgetCategory, Transaction, Subscription,
+    NetWorthSnapshot, PlaidItem,
+)
 from services.ai_provider import AIProvider, PROVIDER_CONFIG, resolve_provider
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Settings"])
 
@@ -111,6 +121,115 @@ def get_ai_providers(session: Session = Depends(get_session)):
         "active_provider": active_provider.value,
         "active_model": active_model or PROVIDER_CONFIG[active_provider]["default_model"],
     }
+
+
+# --- Data management endpoints ---
+# These must be registered BEFORE the /{key} wildcard routes.
+
+# All exportable tables and their models (order matters for import: parents before children)
+_EXPORT_TABLES = [
+    ("accounts", Account),
+    ("liabilities", Liability),
+    ("portfolios", Portfolio),
+    ("portfolio_holdings", PortfolioHolding),
+    ("balance_snapshots", BalanceSnapshot),
+    ("securities", SecurityInfo),
+    ("price_cache", PriceCache),
+    ("properties", Property),
+    ("property_valuation_cache", PropertyValuationCache),
+    ("property_value_history", PropertyValueHistory),
+    ("mortgages", Mortgage),
+    ("retirement_plans", RetirementPlan),
+    ("budget_categories", BudgetCategory),
+    ("transactions", Transaction),
+    ("subscriptions", Subscription),
+    ("net_worth_snapshots", NetWorthSnapshot),
+    ("app_settings", AppSettings),
+]
+
+
+def _row_to_dict(row) -> dict:
+    """Convert a SQLModel row to a JSON-serializable dict."""
+    d = {}
+    for col in row.__class__.__table__.columns:
+        val = getattr(row, col.name)
+        if isinstance(val, datetime):
+            val = val.isoformat()
+        d[col.name] = val
+    return d
+
+
+@router.post("/settings/reset-database")
+def reset_database(
+    session: Session = Depends(get_session),
+    confirm: bool = True,
+):
+    """Drop all data and recreate tables. Requires confirm=true."""
+    if not confirm:
+        raise HTTPException(status_code=400, detail="Confirmation required. Pass confirm=true.")
+
+    session.close()
+    SQLModel.metadata.drop_all(engine)
+    SQLModel.metadata.create_all(engine)
+    logger.info("Database reset: all tables dropped and recreated")
+    return {"message": "Database reset successfully. All data has been deleted."}
+
+
+@router.get("/settings/export")
+def export_data(session: Session = Depends(get_session)):
+    """Export all data as JSON."""
+    data = {"version": "1.0", "exported_at": datetime.utcnow().isoformat()}
+
+    for key, model in _EXPORT_TABLES:
+        try:
+            rows = session.exec(select(model)).all()
+            data[key] = [_row_to_dict(row) for row in rows]
+        except Exception as e:
+            logger.warning("Skipping table %s during export: %s", key, e)
+            data[key] = []
+            session.rollback()
+
+    return JSONResponse(content=data)
+
+
+@router.post("/settings/import")
+async def import_data(file: UploadFile = File(...), session: Session = Depends(get_session)):
+    """Import data from a JSON backup. Replaces all existing data."""
+    try:
+        contents = await file.read()
+        data = json.loads(contents)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        raise HTTPException(status_code=400, detail="Invalid JSON file")
+
+    if not isinstance(data, dict) or "version" not in data:
+        raise HTTPException(status_code=400, detail="Invalid backup format: missing version field")
+
+    # Clear existing data (reverse order to respect foreign keys)
+    for key, model in reversed(_EXPORT_TABLES):
+        rows = session.exec(select(model)).all()
+        for row in rows:
+            session.delete(row)
+    session.commit()
+
+    # Import each table
+    imported_counts = {}
+    for key, model in _EXPORT_TABLES:
+        rows_data = data.get(key, [])
+        if not isinstance(rows_data, list):
+            continue
+        count = 0
+        for row_data in rows_data:
+            try:
+                row = model(**row_data)
+                session.add(row)
+                count += 1
+            except Exception as e:
+                logger.warning("Skipping invalid row in %s: %s", key, e)
+        imported_counts[key] = count
+
+    session.commit()
+    logger.info("Data imported: %s", imported_counts)
+    return {"message": "Data imported successfully", "counts": imported_counts}
 
 
 @router.get("/settings/{key}")
