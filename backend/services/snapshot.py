@@ -6,6 +6,7 @@ shows real values instead of projecting today's portfolio/RE backward.
 """
 import logging
 from datetime import datetime
+from typing import Dict
 from sqlmodel import Session, select
 
 from models import (
@@ -104,3 +105,81 @@ def create_daily_snapshot(session: Session) -> NetWorthSnapshot:
     session.refresh(snapshot)
     logger.info("Created net worth snapshot for %s: net_worth=%.2f", today, snapshot.net_worth)
     return snapshot
+
+
+def backfill_snapshots(session: Session) -> int:
+    """Create NetWorthSnapshot rows for historical dates found in BalanceSnapshot.
+
+    Walks through all unique BalanceSnapshot dates chronologically, tracks
+    running account/liability balances, and creates a NetWorthSnapshot for
+    each date that doesn't already have one.
+
+    Investments and real estate are recorded as 0 for historical dates
+    because we have no point-in-time data for those asset classes prior
+    to the snapshot system being introduced.
+
+    Returns the number of new snapshots created.
+    """
+    balance_snaps = session.exec(
+        select(BalanceSnapshot).order_by(BalanceSnapshot.date)
+    ).all()
+
+    if not balance_snaps:
+        return 0
+
+    # Gather dates that already have a NetWorthSnapshot
+    existing_dates = set(
+        row.date for row in session.exec(select(NetWorthSnapshot)).all()
+    )
+
+    # Group BalanceSnapshots by date string
+    snaps_by_date: Dict[str, list] = {}
+    for snap in balance_snaps:
+        date_str = snap.date.strftime("%Y-%m-%d")
+        if date_str not in snaps_by_date:
+            snaps_by_date[date_str] = []
+        snaps_by_date[date_str].append(snap)
+
+    # Walk dates chronologically with running balances
+    account_balances: Dict[int, float] = {}
+    liability_balances: Dict[int, float] = {}
+    created = 0
+
+    for date_str in sorted(snaps_by_date.keys()):
+        if date_str in existing_dates:
+            # Still update running balances so subsequent dates are correct
+            for snap in snaps_by_date[date_str]:
+                if snap.account_id:
+                    account_balances[snap.account_id] = snap.amount
+                elif snap.liability_id:
+                    liability_balances[snap.liability_id] = snap.amount
+            continue
+
+        # Apply this date's snapshots
+        for snap in snaps_by_date[date_str]:
+            if snap.account_id:
+                account_balances[snap.account_id] = snap.amount
+            elif snap.liability_id:
+                liability_balances[snap.liability_id] = snap.amount
+
+        total_cash = sum(account_balances.values())
+        total_liabilities = sum(liability_balances.values())
+        net_worth = total_cash - total_liabilities
+
+        nw_snapshot = NetWorthSnapshot(
+            date=date_str,
+            total_cash=total_cash,
+            total_investments=0.0,
+            total_real_estate=0.0,
+            total_liabilities=total_liabilities,
+            total_mortgages=0.0,
+            net_worth=net_worth,
+        )
+        session.add(nw_snapshot)
+        created += 1
+
+    if created:
+        session.commit()
+        logger.info("Backfilled %d historical net worth snapshots", created)
+
+    return created

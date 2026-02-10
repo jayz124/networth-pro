@@ -43,11 +43,12 @@ async def lifespan(app: FastAPI):
 
 
 def _create_startup_snapshot():
-    """Create a net worth snapshot on server startup."""
+    """Backfill historical snapshots then create/update today's snapshot."""
     from core.database import get_session
-    from services.snapshot import create_daily_snapshot
+    from services.snapshot import create_daily_snapshot, backfill_snapshots
     session = next(get_session())
     try:
+        backfill_snapshots(session)
         create_daily_snapshot(session)
     except Exception as e:
         logging.getLogger(__name__).warning("Failed to create startup snapshot: %s", e)
