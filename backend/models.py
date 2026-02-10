@@ -176,6 +176,19 @@ class Subscription(BaseModel, table=True):
     is_active: bool = Field(default=True)
 
 
+# Net Worth History (daily snapshots of all components)
+class NetWorthSnapshot(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    date: str = Field(index=True, unique=True)  # YYYY-MM-DD, one row per day
+    total_cash: float = Field(default=0.0)
+    total_investments: float = Field(default=0.0)
+    total_real_estate: float = Field(default=0.0)
+    total_liabilities: float = Field(default=0.0)
+    total_mortgages: float = Field(default=0.0)
+    net_worth: float = Field(default=0.0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 # Plaid Integration
 class PlaidItem(BaseModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
