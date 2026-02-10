@@ -343,8 +343,9 @@ export function runSimulation(input: SimulationInput, taxProfiles?: Record<strin
         }
 
         // Dividend income
-        const yieldTaxable = (assumptions.dividendYield / 100) * (curTaxable.stock / getPotTotal(curTaxable) || 0);
-        const annualDividendAmount = getPotTotal(curTaxable) * yieldTaxable;
+        const taxableTotal = getPotTotal(curTaxable);
+        const yieldTaxable = taxableTotal > 0 ? (assumptions.dividendYield / 100) * (curTaxable.stock / taxableTotal) : 0;
+        const annualDividendAmount = taxableTotal * yieldTaxable;
         taxableDividends = annualDividendAmount;
         const dividendsAsIncome = isRetired ? annualDividendAmount : 0;
 
