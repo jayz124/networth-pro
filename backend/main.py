@@ -31,6 +31,29 @@ def _ensure_property_columns():
     conn.close()
 
 
+def _ensure_valuation_cache_columns():
+    """Add new columns to existing PropertyValuationCache table (SQLite ALTER TABLE)."""
+    from core.database import sqlite_file_name
+    db_path = sqlite_file_name
+    if not os.path.exists(db_path):
+        return
+    conn = sqlite3.connect(db_path)
+    for col, col_type in [
+        ("rent_range_low", "FLOAT"),
+        ("rent_range_high", "FLOAT"),
+        ("bedrooms", "INTEGER"),
+        ("bathrooms", "FLOAT"),
+        ("square_footage", "INTEGER"),
+        ("year_built", "INTEGER"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE propertyvaluationcache ADD COLUMN {col} {col_type}")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+    conn.commit()
+    conn.close()
+
+
 def _ensure_indexes():
     """Create composite indexes on existing tables (idempotent)."""
     from core.database import sqlite_file_name
@@ -52,6 +75,7 @@ async def lifespan(app: FastAPI):
     # Startup: Create tables
     init_db()
     _ensure_property_columns()
+    _ensure_valuation_cache_columns()
     _ensure_indexes()
     # Create today's net worth snapshot on startup
     _create_startup_snapshot()
