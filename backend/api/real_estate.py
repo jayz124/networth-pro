@@ -187,6 +187,61 @@ async def refresh_all_property_values(session: Session = Depends(get_session)):
     return result
 
 
+# Summary (must be before /{property_id} to avoid route conflicts)
+@router.get("/summary")
+def get_real_estate_summary(session: Session = Depends(get_session)):
+    """Get total real estate equity and summary."""
+    properties = session.exec(select(Property)).all()
+    mortgages = session.exec(select(Mortgage)).all()
+
+    # Group mortgages by property
+    mortgage_by_property = {}
+    for m in mortgages:
+        if m.property_id not in mortgage_by_property:
+            mortgage_by_property[m.property_id] = []
+        mortgage_by_property[m.property_id].append(m)
+
+    total_property_value = 0
+    total_mortgage_balance = 0
+    total_equity = 0
+    total_monthly_payments = 0
+    total_appreciation = 0
+
+    property_breakdown = []
+    for prop in properties:
+        prop_mortgages = mortgage_by_property.get(prop.id, [])
+        mortgage_balance = sum(m.current_balance for m in prop_mortgages if m.is_active)
+        monthly_payment = sum(m.monthly_payment for m in prop_mortgages if m.is_active)
+        equity = prop.current_value - mortgage_balance
+        appreciation = prop.current_value - prop.purchase_price
+
+        total_property_value += prop.current_value
+        total_mortgage_balance += mortgage_balance
+        total_equity += equity
+        total_monthly_payments += monthly_payment
+        total_appreciation += appreciation
+
+        property_breakdown.append({
+            "id": prop.id,
+            "name": prop.name,
+            "property_type": prop.property_type,
+            "current_value": prop.current_value,
+            "mortgage_balance": mortgage_balance,
+            "equity": equity,
+            "appreciation": appreciation,
+        })
+
+    return {
+        "total_property_value": total_property_value,
+        "total_mortgage_balance": total_mortgage_balance,
+        "total_equity": total_equity,
+        "total_monthly_payments": total_monthly_payments,
+        "total_appreciation": total_appreciation,
+        "properties_count": len(properties),
+        "properties": property_breakdown,
+    }
+
+
 # --- Per-property endpoints ---
 
 @router.get("/{property_id}")
@@ -412,61 +467,6 @@ def delete_mortgage(mortgage_id: int, session: Session = Depends(get_session)):
     session.delete(mortgage)
     session.commit()
     return {"message": "Mortgage deleted", "id": mortgage_id}
-
-
-# Summary
-@router.get("/summary")
-def get_real_estate_summary(session: Session = Depends(get_session)):
-    """Get total real estate equity and summary."""
-    properties = session.exec(select(Property)).all()
-    mortgages = session.exec(select(Mortgage)).all()
-
-    # Group mortgages by property
-    mortgage_by_property = {}
-    for m in mortgages:
-        if m.property_id not in mortgage_by_property:
-            mortgage_by_property[m.property_id] = []
-        mortgage_by_property[m.property_id].append(m)
-
-    total_property_value = 0
-    total_mortgage_balance = 0
-    total_equity = 0
-    total_monthly_payments = 0
-    total_appreciation = 0
-
-    property_breakdown = []
-    for prop in properties:
-        prop_mortgages = mortgage_by_property.get(prop.id, [])
-        mortgage_balance = sum(m.current_balance for m in prop_mortgages if m.is_active)
-        monthly_payment = sum(m.monthly_payment for m in prop_mortgages if m.is_active)
-        equity = prop.current_value - mortgage_balance
-        appreciation = prop.current_value - prop.purchase_price
-
-        total_property_value += prop.current_value
-        total_mortgage_balance += mortgage_balance
-        total_equity += equity
-        total_monthly_payments += monthly_payment
-        total_appreciation += appreciation
-
-        property_breakdown.append({
-            "id": prop.id,
-            "name": prop.name,
-            "property_type": prop.property_type,
-            "current_value": prop.current_value,
-            "mortgage_balance": mortgage_balance,
-            "equity": equity,
-            "appreciation": appreciation,
-        })
-
-    return {
-        "total_property_value": total_property_value,
-        "total_mortgage_balance": total_mortgage_balance,
-        "total_equity": total_equity,
-        "total_monthly_payments": total_monthly_payments,
-        "total_appreciation": total_appreciation,
-        "properties_count": len(properties),
-        "properties": property_breakdown,
-    }
 
 
 def _property_to_dict(prop: Property) -> dict:

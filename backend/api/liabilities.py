@@ -132,6 +132,38 @@ def create_liability(data: LiabilityCreate, session: Session = Depends(get_sessi
     }
 
 
+@router.get("/liabilities/summary")
+def get_liabilities_summary(session: Session = Depends(get_session)):
+    """Get aggregate summary of all liabilities."""
+    liabilities = session.exec(select(Liability)).all()
+
+    total_balance = 0.0
+    by_category = {}
+
+    for liability in liabilities:
+        # Get latest balance
+        latest_snapshot = session.exec(
+            select(BalanceSnapshot)
+            .where(BalanceSnapshot.liability_id == liability.id)
+            .order_by(BalanceSnapshot.date.desc())
+        ).first()
+
+        balance = latest_snapshot.amount if latest_snapshot else 0.0
+        total_balance += balance
+
+        # Group by category
+        cat = liability.category or "Other"
+        if cat not in by_category:
+            by_category[cat] = 0.0
+        by_category[cat] += balance
+
+    return {
+        "total_balance": total_balance,
+        "liabilities_count": len(liabilities),
+        "by_category": [{"category": k, "balance": v} for k, v in by_category.items()],
+    }
+
+
 @router.get("/liabilities/{liability_id}")
 def get_liability(liability_id: int, session: Session = Depends(get_session)):
     """Get liability details with balance history."""
@@ -270,34 +302,3 @@ def update_balance(
     }
 
 
-# Summary
-@router.get("/liabilities/summary")
-def get_liabilities_summary(session: Session = Depends(get_session)):
-    """Get aggregate summary of all liabilities."""
-    liabilities = session.exec(select(Liability)).all()
-
-    total_balance = 0.0
-    by_category = {}
-
-    for liability in liabilities:
-        # Get latest balance
-        latest_snapshot = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.liability_id == liability.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
-
-        balance = latest_snapshot.amount if latest_snapshot else 0.0
-        total_balance += balance
-
-        # Group by category
-        cat = liability.category or "Other"
-        if cat not in by_category:
-            by_category[cat] = 0.0
-        by_category[cat] += balance
-
-    return {
-        "total_balance": total_balance,
-        "liabilities_count": len(liabilities),
-        "by_category": [{"category": k, "balance": v} for k, v in by_category.items()],
-    }

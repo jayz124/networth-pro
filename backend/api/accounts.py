@@ -129,6 +129,45 @@ def create_account(data: AccountCreate, session: Session = Depends(get_session))
     }
 
 
+@router.get("/accounts/summary")
+def get_accounts_summary(session: Session = Depends(get_session)):
+    """Get aggregate summary of all accounts."""
+    accounts = session.exec(select(Account)).all()
+
+    total_balance = 0.0
+    by_type = {}
+    by_institution = {}
+
+    for account in accounts:
+        # Get latest balance
+        latest_snapshot = session.exec(
+            select(BalanceSnapshot)
+            .where(BalanceSnapshot.account_id == account.id)
+            .order_by(BalanceSnapshot.date.desc())
+        ).first()
+
+        balance = latest_snapshot.amount if latest_snapshot else 0.0
+        total_balance += balance
+
+        # Group by type
+        if account.type not in by_type:
+            by_type[account.type] = 0.0
+        by_type[account.type] += balance
+
+        # Group by institution
+        inst = account.institution or "Other"
+        if inst not in by_institution:
+            by_institution[inst] = 0.0
+        by_institution[inst] += balance
+
+    return {
+        "total_balance": total_balance,
+        "accounts_count": len(accounts),
+        "by_type": [{"type": k, "balance": v} for k, v in by_type.items()],
+        "by_institution": [{"institution": k, "balance": v} for k, v in by_institution.items()],
+    }
+
+
 @router.get("/accounts/{account_id}")
 def get_account(account_id: int, session: Session = Depends(get_session)):
     """Get account details with balance history."""
@@ -271,41 +310,3 @@ def update_balance(
     }
 
 
-# Summary
-@router.get("/accounts/summary")
-def get_accounts_summary(session: Session = Depends(get_session)):
-    """Get aggregate summary of all accounts."""
-    accounts = session.exec(select(Account)).all()
-
-    total_balance = 0.0
-    by_type = {}
-    by_institution = {}
-
-    for account in accounts:
-        # Get latest balance
-        latest_snapshot = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.account_id == account.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
-
-        balance = latest_snapshot.amount if latest_snapshot else 0.0
-        total_balance += balance
-
-        # Group by type
-        if account.type not in by_type:
-            by_type[account.type] = 0.0
-        by_type[account.type] += balance
-
-        # Group by institution
-        inst = account.institution or "Other"
-        if inst not in by_institution:
-            by_institution[inst] = 0.0
-        by_institution[inst] += balance
-
-    return {
-        "total_balance": total_balance,
-        "accounts_count": len(accounts),
-        "by_type": [{"type": k, "balance": v} for k, v in by_type.items()],
-        "by_institution": [{"institution": k, "balance": v} for k, v in by_institution.items()],
-    }

@@ -96,6 +96,28 @@ def create_plan(data: RetirementPlanCreate, session: Session = Depends(get_sessi
     }
 
 
+@router.get("/retirement/plans/active")
+def get_active_plan(session: Session = Depends(get_session)):
+    """Get the currently active retirement plan."""
+    plan = session.exec(
+        select(RetirementPlan).where(RetirementPlan.is_active == True)
+    ).first()
+
+    if not plan:
+        return None
+
+    return {
+        "id": plan.id,
+        "name": plan.name,
+        "description": plan.description,
+        "mode": plan.mode,
+        "config_json": plan.config_json,
+        "is_active": plan.is_active,
+        "created_at": plan.created_at,
+        "updated_at": plan.updated_at,
+    }
+
+
 @router.get("/retirement/plans/{plan_id}")
 def get_plan(plan_id: int, session: Session = Depends(get_session)):
     """Get a specific retirement plan with its configuration."""
@@ -194,26 +216,4 @@ def activate_plan(plan_id: int, session: Session = Depends(get_session)):
         "name": plan.name,
         "is_active": plan.is_active,
         "message": "Plan activated",
-    }
-
-
-@router.get("/retirement/plans/active")
-def get_active_plan(session: Session = Depends(get_session)):
-    """Get the currently active retirement plan."""
-    plan = session.exec(
-        select(RetirementPlan).where(RetirementPlan.is_active == True)
-    ).first()
-
-    if not plan:
-        return None
-
-    return {
-        "id": plan.id,
-        "name": plan.name,
-        "description": plan.description,
-        "mode": plan.mode,
-        "config_json": plan.config_json,
-        "is_active": plan.is_active,
-        "created_at": plan.created_at,
-        "updated_at": plan.updated_at,
     }
