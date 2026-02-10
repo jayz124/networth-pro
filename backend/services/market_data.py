@@ -2,10 +2,13 @@
 Market data service using Yahoo Finance (yfinance).
 Provides security search, quotes, and batch price fetching with caching.
 """
+import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from sqlmodel import Session, select
 import yfinance as yf
+
+logger = logging.getLogger(__name__)
 
 from models import SecurityInfo, PriceCache
 
@@ -39,8 +42,8 @@ def search_securities(query: str, limit: int = 10) -> List[Dict[str, Any]]:
                 "sector": info.get("sector"),
                 "current_price": info.get("currentPrice") or info.get("regularMarketPrice"),
             })
-    except Exception:
-        pass  # Ticker not found or API error
+    except Exception as e:
+        logger.debug("Ticker search for %s failed: %s", query, e)
 
     # For broader searches, we use a list of common tickers
     # yfinance doesn't have a native search API, so we do best-effort matching
@@ -80,7 +83,8 @@ def search_securities(query: str, limit: int = 10) -> List[Dict[str, Any]]:
                     "sector": info.get("sector"),
                     "current_price": info.get("currentPrice") or info.get("regularMarketPrice"),
                 })
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to fetch info for ticker %s: %s", ticker_symbol, e)
             continue
 
     return results[:limit]
@@ -171,7 +175,7 @@ def get_quote(ticker: str, session: Session) -> Optional[Dict[str, Any]]:
             "cached": False,
         }
     except Exception as e:
-        print(f"Error fetching quote for {ticker}: {e}")
+        logger.warning("Error fetching quote for %s: %s", ticker, e)
         return None
 
 
@@ -253,12 +257,13 @@ def get_batch_quotes(tickers: List[str], session: Session) -> Dict[str, Dict[str
                             "fetched_at": datetime.utcnow().isoformat(),
                             "cached": False,
                         }
-                except Exception:
+                except Exception as e:
+                    logger.debug("Failed to fetch quote for %s in batch: %s", ticker, e)
                     continue
 
             session.commit()
         except Exception as e:
-            print(f"Error batch fetching quotes: {e}")
+            logger.warning("Error batch fetching quotes: %s", e)
 
     return results
 
