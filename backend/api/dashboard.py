@@ -159,73 +159,48 @@ def get_networth(session: Session = Depends(get_session)):
 @router.get("/networth/history")
 def get_networth_history(session: Session = Depends(get_session)):
     """
-    Get historical Net Worth over time.
-    Computes cumulative net worth at each date based on all balance snapshots.
-    Uses the most recent snapshot for each account/liability as of each date.
+    Get historical Net Worth over time using daily snapshots.
+    Each snapshot records the actual component values on that day,
+    so the chart reflects real historical values rather than projecting
+    today's portfolio/real-estate values backward.
     """
-    # Get all snapshots ordered by date
-    snapshots = session.exec(
-        select(BalanceSnapshot).order_by(BalanceSnapshot.date)
+    from services.snapshot import compute_net_worth_components
+
+    # Fetch stored daily snapshots
+    nw_snapshots = session.exec(
+        select(NetWorthSnapshot).order_by(NetWorthSnapshot.date)
     ).all()
 
-    if not snapshots:
-        return []
+    today = datetime.utcnow().strftime("%Y-%m-%d")
 
-    # Track the most recent balance for each account and liability
-    account_balances: Dict[int, float] = {}
-    liability_balances: Dict[int, float] = {}
-
-    # Collect all unique dates
-    all_dates = sorted(set(snap.date.strftime("%Y-%m-%d") for snap in snapshots))
-
-    # Build a timeline: for each snapshot, update the running balance
-    # Group snapshots by date first
-    snapshots_by_date: Dict[str, list] = {}
-    for snap in snapshots:
-        date_str = snap.date.strftime("%Y-%m-%d")
-        if date_str not in snapshots_by_date:
-            snapshots_by_date[date_str] = []
-        snapshots_by_date[date_str].append(snap)
-
-    # Get current portfolio value (point-in-time, we'll add this to all dates for context)
-    holdings = session.exec(select(PortfolioHolding)).all()
-    total_investments = sum(h.current_value or 0 for h in holdings)
-
-    # Get current real estate value and mortgages
-    properties = session.exec(select(Property)).all()
-    mortgages = session.exec(select(Mortgage)).all()
-    total_real_estate = sum(p.current_value for p in properties)
-    total_mortgages = sum(m.current_balance for m in mortgages if m.is_active)
-
-    # Build cumulative history
     history_list = []
-
-    for date_str in all_dates:
-        # Apply all snapshots up to and including this date
-        if date_str in snapshots_by_date:
-            for snap in snapshots_by_date[date_str]:
-                if snap.account_id:
-                    account_balances[snap.account_id] = snap.amount
-                elif snap.liability_id:
-                    liability_balances[snap.liability_id] = snap.amount
-
-        # Calculate totals as of this date
-        total_cash = sum(account_balances.values())
-        total_liabilities = sum(liability_balances.values())
-
-        # For historical accuracy, we only have point-in-time portfolio/real estate
-        # So we include them only for dates close to "now" or as context
-        # For a proper implementation, we'd need to track portfolio snapshots too
-        # For now, include investments and real estate in all dates for visualization
-        total_assets = total_cash + total_investments + total_real_estate
-        total_liab = total_liabilities + total_mortgages
-
+    for snap in nw_snapshots:
+        # Skip today's stored row — we'll append a live one below
+        if snap.date == today:
+            continue
+        total_assets = snap.total_cash + snap.total_investments + snap.total_real_estate
+        total_liab = snap.total_liabilities + snap.total_mortgages
         history_list.append({
-            "date": date_str,
+            "date": snap.date,
             "assets": total_assets,
             "liabilities": total_liab,
-            "net_worth": total_assets - total_liab,
+            "net_worth": snap.net_worth,
         })
+
+    # Always append a live "today" data point from current values
+    components = compute_net_worth_components(session)
+    total_assets_today = (
+        components["total_cash"]
+        + components["total_investments"]
+        + components["total_real_estate"]
+    )
+    total_liab_today = components["total_liabilities"] + components["total_mortgages"]
+    history_list.append({
+        "date": today,
+        "assets": total_assets_today,
+        "liabilities": total_liab_today,
+        "net_worth": components["net_worth"],
+    })
 
     return history_list
 
