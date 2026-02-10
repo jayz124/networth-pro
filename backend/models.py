@@ -176,6 +176,14 @@ class Subscription(BaseModel, table=True):
     is_active: bool = Field(default=True)
 
 
+# Plaid Integration
+class PlaidItem(BaseModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    item_id: str = Field(index=True, unique=True)
+    access_token: str  # Stored server-side only, never exposed to frontend
+    institution_name: Optional[str] = None
+
+
 # Application Settings
 class AppSettings(BaseModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

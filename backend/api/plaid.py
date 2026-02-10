@@ -1,9 +1,16 @@
 
+import logging
 import os
 from datetime import datetime, timedelta
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body
 from pydantic import BaseModel
+from sqlmodel import Session, select
 from typing import Optional, List
+
+from core.database import get_session
+from models import PlaidItem
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/plaid", tags=["plaid"])
 
@@ -89,7 +96,10 @@ async def create_link_token():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/exchange_public_token")
-async def exchange_public_token(payload: PublicTokenExchangeRequest = Body(...)):
+async def exchange_public_token(
+    payload: PublicTokenExchangeRequest = Body(...),
+    session: Session = Depends(get_session),
+):
     try:
         import plaid
         from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
@@ -102,26 +112,44 @@ async def exchange_public_token(payload: PublicTokenExchangeRequest = Body(...))
         access_token = response['access_token']
         item_id = response['item_id']
 
-        # TODO: Save access_token and item_id to database associated with the user
-        # For now, we will return them (NOT SECURE FOR PRODUCTION - PROTOTYPE ONLY)
-        return {"access_token": access_token, "item_id": item_id}
+        # Store access token server-side — never expose to frontend
+        existing = session.exec(
+            select(PlaidItem).where(PlaidItem.item_id == item_id)
+        ).first()
+        if existing:
+            existing.access_token = access_token
+            session.add(existing)
+        else:
+            plaid_item = PlaidItem(
+                item_id=item_id,
+                access_token=access_token,
+            )
+            session.add(plaid_item)
+        session.commit()
+
+        # Return only the opaque item_id — access_token stays server-side
+        return {"item_id": item_id}
 
     except plaid.ApiException as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/balance/{access_token}")
-async def get_balance(access_token: str):
-    """
-    Fetches real-time balance for the given access token.
-    In a real app, you'd look up the access token from the DB using a session/user ID.
-    """
+@router.get("/balance/{item_id}")
+async def get_balance(item_id: str, session: Session = Depends(get_session)):
+    """Fetch real-time balance for a linked Plaid item. Access token is looked up server-side."""
+    # Look up access token from database — never accept it from the client
+    plaid_item = session.exec(
+        select(PlaidItem).where(PlaidItem.item_id == item_id)
+    ).first()
+    if not plaid_item:
+        raise HTTPException(status_code=404, detail="Plaid item not found. Link an account first.")
+
     try:
         import plaid
         from plaid.model.accounts_balance_get_request import AccountsBalanceGetRequest
 
         client = _get_plaid_client()
         request = AccountsBalanceGetRequest(
-            access_token=access_token
+            access_token=plaid_item.access_token
         )
         response = client.accounts_balance_get(request)
 
