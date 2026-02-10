@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from typing import Dict
 
 from core.database import get_session
+from core.queries import get_latest_account_balances, get_latest_liability_balances
 from models import Account, Liability, BalanceSnapshot, Portfolio, PortfolioHolding, Property, Mortgage, NetWorthSnapshot
 
 logger = logging.getLogger(__name__)
@@ -26,16 +27,12 @@ def get_networth(session: Session = Depends(get_session)):
     """
     # 1. Cash Accounts (Assets)
     accounts = session.exec(select(Account)).all()
+    acct_balances = get_latest_account_balances(session)
     total_cash = 0.0
     asset_breakdown = []
 
     for account in accounts:
-        snap = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.account_id == account.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
-
+        snap = acct_balances.get(account.id)
         balance = snap.amount if snap else 0.0
         total_cash += balance
         asset_breakdown.append({
@@ -113,13 +110,9 @@ def get_networth(session: Session = Depends(get_session)):
     total_liabilities += total_mortgage_balance
 
     # Add other liabilities
+    liab_balances = get_latest_liability_balances(session)
     for liab in liabilities:
-        snap = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.liability_id == liab.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
-
+        snap = liab_balances.get(liab.id)
         balance = snap.amount if snap else 0.0
         total_liabilities += balance
         liab_breakdown.append({
@@ -212,15 +205,12 @@ def get_networth_breakdown(session: Session = Depends(get_session)):
     """
     # Cash
     accounts = session.exec(select(Account)).all()
+    acct_balances = get_latest_account_balances(session)
     cash_items = []
     total_cash = 0.0
 
     for account in accounts:
-        snap = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.account_id == account.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
+        snap = acct_balances.get(account.id)
         balance = snap.amount if snap else 0.0
         total_cash += balance
         cash_items.append({
@@ -306,12 +296,9 @@ def get_networth_breakdown(session: Session = Depends(get_session)):
             })
 
     # Add other liabilities
+    liab_balances = get_latest_liability_balances(session)
     for liab in liabilities:
-        snap = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.liability_id == liab.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
+        snap = liab_balances.get(liab.id)
         balance = snap.amount if snap else 0.0
         total_liabilities += balance
         liability_items.append({

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from core.database import get_session
+from core.queries import get_latest_liability_balances
 from models import Liability, BalanceSnapshot
 
 router = APIRouter(tags=["Liabilities"])
@@ -63,24 +64,19 @@ class LiabilityResponse(BaseModel):
 def list_liabilities(session: Session = Depends(get_session)):
     """List all liabilities with their current balances."""
     liabilities = session.exec(select(Liability)).all()
+    latest_balances = get_latest_liability_balances(session)
 
     result = []
     for liability in liabilities:
-        # Get latest balance snapshot
-        latest_snapshot = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.liability_id == liability.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
-
+        snap = latest_balances.get(liability.id)
         result.append({
             "id": liability.id,
             "name": liability.name,
             "category": liability.category,
             "currency": liability.currency,
             "tags": liability.tags,
-            "current_balance": latest_snapshot.amount if latest_snapshot else 0.0,
-            "last_updated": latest_snapshot.date if latest_snapshot else None,
+            "current_balance": snap.amount if snap else 0.0,
+            "last_updated": snap.date if snap else None,
             "created_at": liability.created_at,
             "updated_at": liability.updated_at,
         })
@@ -136,19 +132,13 @@ def create_liability(data: LiabilityCreate, session: Session = Depends(get_sessi
 def get_liabilities_summary(session: Session = Depends(get_session)):
     """Get aggregate summary of all liabilities."""
     liabilities = session.exec(select(Liability)).all()
+    latest_balances = get_latest_liability_balances(session)
 
     total_balance = 0.0
     by_category = {}
 
     for liability in liabilities:
-        # Get latest balance
-        latest_snapshot = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.liability_id == liability.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
-
-        balance = latest_snapshot.amount if latest_snapshot else 0.0
+        balance = latest_balances[liability.id].amount if liability.id in latest_balances else 0.0
         total_balance += balance
 
         # Group by category

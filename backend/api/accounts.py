@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from core.database import get_session
+from core.queries import get_latest_account_balances
 from models import Account, BalanceSnapshot
 
 router = APIRouter(tags=["Accounts"])
@@ -57,16 +58,11 @@ class AccountResponse(BaseModel):
 def list_accounts(session: Session = Depends(get_session)):
     """List all accounts with their current balances."""
     accounts = session.exec(select(Account)).all()
+    latest_balances = get_latest_account_balances(session)
 
     result = []
     for account in accounts:
-        # Get latest balance snapshot
-        latest_snapshot = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.account_id == account.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
-
+        snap = latest_balances.get(account.id)
         result.append({
             "id": account.id,
             "name": account.name,
@@ -74,8 +70,8 @@ def list_accounts(session: Session = Depends(get_session)):
             "type": account.type,
             "currency": account.currency,
             "tags": account.tags,
-            "current_balance": latest_snapshot.amount if latest_snapshot else 0.0,
-            "last_updated": latest_snapshot.date if latest_snapshot else None,
+            "current_balance": snap.amount if snap else 0.0,
+            "last_updated": snap.date if snap else None,
             "created_at": account.created_at,
             "updated_at": account.updated_at,
         })
@@ -133,20 +129,14 @@ def create_account(data: AccountCreate, session: Session = Depends(get_session))
 def get_accounts_summary(session: Session = Depends(get_session)):
     """Get aggregate summary of all accounts."""
     accounts = session.exec(select(Account)).all()
+    latest_balances = get_latest_account_balances(session)
 
     total_balance = 0.0
     by_type = {}
     by_institution = {}
 
     for account in accounts:
-        # Get latest balance
-        latest_snapshot = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.account_id == account.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
-
-        balance = latest_snapshot.amount if latest_snapshot else 0.0
+        balance = latest_balances[account.id].amount if account.id in latest_balances else 0.0
         total_balance += balance
 
         # Group by type

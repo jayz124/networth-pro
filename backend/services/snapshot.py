@@ -13,6 +13,7 @@ from models import (
     Account, Liability, BalanceSnapshot, PortfolioHolding,
     Property, Mortgage, NetWorthSnapshot,
 )
+from core.queries import get_latest_account_balances, get_latest_liability_balances
 
 logger = logging.getLogger(__name__)
 
@@ -22,16 +23,9 @@ def compute_net_worth_components(session: Session) -> dict:
 
     Returns a dict with keys matching NetWorthSnapshot fields.
     """
-    # Cash accounts
-    accounts = session.exec(select(Account)).all()
-    total_cash = 0.0
-    for account in accounts:
-        snap = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.account_id == account.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
-        total_cash += snap.amount if snap else 0.0
+    # Cash accounts (batch query)
+    acct_balances = get_latest_account_balances(session)
+    total_cash = sum(s.amount for s in acct_balances.values())
 
     # Investments
     holdings = session.exec(select(PortfolioHolding)).all()
@@ -45,16 +39,9 @@ def compute_net_worth_components(session: Session) -> dict:
     mortgages = session.exec(select(Mortgage)).all()
     total_mortgages = sum(m.current_balance for m in mortgages if m.is_active)
 
-    # Other liabilities
-    liabilities = session.exec(select(Liability)).all()
-    total_liabilities = 0.0
-    for liab in liabilities:
-        snap = session.exec(
-            select(BalanceSnapshot)
-            .where(BalanceSnapshot.liability_id == liab.id)
-            .order_by(BalanceSnapshot.date.desc())
-        ).first()
-        total_liabilities += snap.amount if snap else 0.0
+    # Other liabilities (batch query)
+    liab_balances = get_latest_liability_balances(session)
+    total_liabilities = sum(s.amount for s in liab_balances.values())
 
     total_assets = total_cash + total_investments + total_real_estate
     total_liab = total_liabilities + total_mortgages
