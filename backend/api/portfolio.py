@@ -4,7 +4,7 @@ Portfolio API - Full CRUD for portfolios and holdings with P&L calculations.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 from core.database import get_session
@@ -31,8 +31,8 @@ class PortfolioUpdate(BaseModel):
 class HoldingCreate(BaseModel):
     ticker: str
     asset_type: str
-    quantity: float
-    purchase_price: Optional[float] = None
+    quantity: float = Field(ge=0)
+    purchase_price: Optional[float] = Field(default=None, ge=0)
     purchase_date: Optional[str] = None
     currency: str = "USD"
     name: Optional[str] = None
@@ -41,8 +41,8 @@ class HoldingCreate(BaseModel):
 class HoldingUpdate(BaseModel):
     ticker: Optional[str] = None
     asset_type: Optional[str] = None
-    quantity: Optional[float] = None
-    purchase_price: Optional[float] = None
+    quantity: Optional[float] = Field(default=None, ge=0)
+    purchase_price: Optional[float] = Field(default=None, ge=0)
     purchase_date: Optional[str] = None
     currency: Optional[str] = None
     current_price: Optional[float] = None

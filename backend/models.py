@@ -35,12 +35,12 @@ class PortfolioHolding(BaseModel, table=True):
     portfolio_id: int = Field(foreign_key="portfolio.id")
     ticker: str
     asset_type: str
-    quantity: float
-    purchase_price: Optional[float] = None
+    quantity: float = Field(ge=0)
+    purchase_price: Optional[float] = Field(default=None, ge=0)
     purchase_date: Optional[str] = None
     currency: str = Field(default="USD")
-    current_price: Optional[float] = None # Cached price
-    current_value: Optional[float] = None # Calculated (qty * price)
+    current_price: Optional[float] = Field(default=None, ge=0)  # Cached price
+    current_value: Optional[float] = Field(default=None, ge=0)  # Calculated (qty * price)
 
 # Snapshot table for historical tracking (Normalized!)
 class BalanceSnapshot(BaseModel, table=True):
@@ -72,8 +72,8 @@ class SecurityInfo(BaseModel, table=True):
 class PriceCache(BaseModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     ticker: str = Field(index=True)
-    current_price: float
-    previous_close: Optional[float] = None
+    current_price: float = Field(ge=0)
+    previous_close: Optional[float] = Field(default=None, ge=0)
     change_percent: Optional[float] = None
     fetched_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -84,9 +84,9 @@ class Property(BaseModel, table=True):
     name: str
     address: str
     property_type: str  # residential, commercial, rental, land
-    purchase_price: float
+    purchase_price: float = Field(ge=0)
     purchase_date: Optional[str] = None
-    current_value: float
+    current_value: float = Field(ge=0)
     currency: str = Field(default="USD")
     provider_property_id: Optional[str] = None  # RentCast property ID
     valuation_provider: Optional[str] = None  # "rentcast" or None (manual)
@@ -124,11 +124,11 @@ class Mortgage(BaseModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     property_id: int = Field(foreign_key="property.id")
     lender: Optional[str] = None
-    original_principal: float
-    current_balance: float
-    interest_rate: float
-    monthly_payment: float
-    term_years: int
+    original_principal: float = Field(ge=0)
+    current_balance: float = Field(ge=0)
+    interest_rate: float = Field(ge=0)
+    monthly_payment: float = Field(ge=0)
+    term_years: int = Field(ge=0)
     is_active: bool = Field(default=True)
 
 
@@ -148,7 +148,7 @@ class BudgetCategory(BaseModel, table=True):
     name: str = Field(index=True, unique=True)
     icon: Optional[str] = None
     color: Optional[str] = None
-    budget_limit: Optional[float] = None
+    budget_limit: Optional[float] = Field(default=None, ge=0)
     is_income: bool = Field(default=False)
 
 
@@ -169,7 +169,7 @@ class Transaction(BaseModel, table=True):
 class Subscription(BaseModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
-    amount: float
+    amount: float = Field(ge=0)
     frequency: str  # monthly, yearly
     category_id: Optional[int] = Field(default=None, foreign_key="budgetcategory.id")
     next_billing_date: Optional[datetime] = None

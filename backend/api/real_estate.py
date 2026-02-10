@@ -4,7 +4,7 @@ Real Estate API - CRUD for properties and mortgages with equity calculations.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 from core.database import get_session
@@ -18,9 +18,9 @@ class PropertyCreate(BaseModel):
     name: str
     address: str
     property_type: str  # residential, commercial, rental, land
-    purchase_price: float
+    purchase_price: float = Field(ge=0)
     purchase_date: Optional[str] = None
-    current_value: float
+    current_value: float = Field(ge=0)
     currency: str = "USD"
     provider_property_id: Optional[str] = None
     valuation_provider: Optional[str] = None
@@ -30,9 +30,9 @@ class PropertyUpdate(BaseModel):
     name: Optional[str] = None
     address: Optional[str] = None
     property_type: Optional[str] = None
-    purchase_price: Optional[float] = None
+    purchase_price: Optional[float] = Field(default=None, ge=0)
     purchase_date: Optional[str] = None
-    current_value: Optional[float] = None
+    current_value: Optional[float] = Field(default=None, ge=0)
     currency: Optional[str] = None
     provider_property_id: Optional[str] = None
     valuation_provider: Optional[str] = None
@@ -40,21 +40,21 @@ class PropertyUpdate(BaseModel):
 
 class MortgageCreate(BaseModel):
     lender: Optional[str] = None
-    original_principal: float
-    current_balance: float
-    interest_rate: float
-    monthly_payment: float
-    term_years: int
+    original_principal: float = Field(ge=0)
+    current_balance: float = Field(ge=0)
+    interest_rate: float = Field(ge=0)
+    monthly_payment: float = Field(ge=0)
+    term_years: int = Field(ge=0)
     is_active: bool = True
 
 
 class MortgageUpdate(BaseModel):
     lender: Optional[str] = None
-    original_principal: Optional[float] = None
-    current_balance: Optional[float] = None
-    interest_rate: Optional[float] = None
-    monthly_payment: Optional[float] = None
-    term_years: Optional[int] = None
+    original_principal: Optional[float] = Field(default=None, ge=0)
+    current_balance: Optional[float] = Field(default=None, ge=0)
+    interest_rate: Optional[float] = Field(default=None, ge=0)
+    monthly_payment: Optional[float] = Field(default=None, ge=0)
+    term_years: Optional[int] = Field(default=None, ge=0)
     is_active: Optional[bool] = None
 
 

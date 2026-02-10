@@ -4,7 +4,7 @@ Accounts API - Full CRUD for cash accounts with balance tracking.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 from core.database import get_session
@@ -19,7 +19,7 @@ class AccountCreate(BaseModel):
     institution: Optional[str] = None
     type: str  # checking, savings, investment, cash
     currency: str = "USD"
-    current_balance: float = 0.0
+    current_balance: float = Field(default=0.0, ge=0)
     tags: Optional[str] = None
 
 
