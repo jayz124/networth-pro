@@ -1,5 +1,6 @@
 from typing import Optional
 from sqlmodel import Field, SQLModel
+from sqlalchemy import Index
 from datetime import datetime
 
 class BaseModel(SQLModel):
@@ -44,6 +45,11 @@ class PortfolioHolding(BaseModel, table=True):
 
 # Snapshot table for historical tracking (Normalized!)
 class BalanceSnapshot(BaseModel, table=True):
+    __table_args__ = (
+        Index("ix_balancesnapshot_account_date", "account_id", "date"),
+        Index("ix_balancesnapshot_liability_date", "liability_id", "date"),
+    )
+
     id: Optional[int] = Field(default=None, primary_key=True)
     date: datetime = Field(index=True)
 

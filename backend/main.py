@@ -31,11 +31,28 @@ def _ensure_property_columns():
     conn.close()
 
 
+def _ensure_indexes():
+    """Create composite indexes on existing tables (idempotent)."""
+    from core.database import sqlite_file_name
+    db_path = sqlite_file_name
+    if not os.path.exists(db_path):
+        return
+    conn = sqlite3.connect(db_path)
+    for sql in [
+        "CREATE INDEX IF NOT EXISTS ix_balancesnapshot_account_date ON balancesnapshot (account_id, date)",
+        "CREATE INDEX IF NOT EXISTS ix_balancesnapshot_liability_date ON balancesnapshot (liability_id, date)",
+    ]:
+        conn.execute(sql)
+    conn.commit()
+    conn.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Create tables
     init_db()
     _ensure_property_columns()
+    _ensure_indexes()
     # Create today's net worth snapshot on startup
     _create_startup_snapshot()
     yield
