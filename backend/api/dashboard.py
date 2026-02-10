@@ -1,12 +1,16 @@
 """
 Dashboard API - Net worth calculation including cash, investments, and real estate.
 """
+import logging
+from datetime import datetime
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 from typing import Dict
 
 from core.database import get_session
-from models import Account, Liability, BalanceSnapshot, Portfolio, PortfolioHolding, Property, Mortgage
+from models import Account, Liability, BalanceSnapshot, Portfolio, PortfolioHolding, Property, Mortgage, NetWorthSnapshot
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -129,6 +133,12 @@ def get_networth(session: Session = Depends(get_session)):
     total_assets = total_cash + total_investments + total_real_estate_value
     # Net worth = Assets - Liabilities (mortgages are now in liabilities)
     net_worth = total_assets - total_liabilities
+
+    # Persist today's snapshot (upsert) so history chart has real data
+    _upsert_today_snapshot(
+        session, total_cash, total_investments, total_real_estate_value,
+        total_liabilities - total_mortgage_balance, total_mortgage_balance, net_worth,
+    )
 
     return {
         "net_worth": net_worth,
@@ -362,3 +372,44 @@ def get_networth_breakdown(session: Session = Depends(get_session)):
             },
         }
     }
+
+
+def _upsert_today_snapshot(
+    session: Session,
+    total_cash: float,
+    total_investments: float,
+    total_real_estate: float,
+    total_liabilities: float,
+    total_mortgages: float,
+    net_worth: float,
+) -> None:
+    """Persist today's net worth snapshot (create or update)."""
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    try:
+        existing = session.exec(
+            select(NetWorthSnapshot).where(NetWorthSnapshot.date == today)
+        ).first()
+
+        if existing:
+            existing.total_cash = total_cash
+            existing.total_investments = total_investments
+            existing.total_real_estate = total_real_estate
+            existing.total_liabilities = total_liabilities
+            existing.total_mortgages = total_mortgages
+            existing.net_worth = net_worth
+            session.add(existing)
+        else:
+            snapshot = NetWorthSnapshot(
+                date=today,
+                total_cash=total_cash,
+                total_investments=total_investments,
+                total_real_estate=total_real_estate,
+                total_liabilities=total_liabilities,
+                total_mortgages=total_mortgages,
+                net_worth=net_worth,
+            )
+            session.add(snapshot)
+
+        session.commit()
+    except Exception as e:
+        logger.warning("Failed to upsert snapshot: %s", e)

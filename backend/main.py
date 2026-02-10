@@ -36,8 +36,23 @@ async def lifespan(app: FastAPI):
     # Startup: Create tables
     init_db()
     _ensure_property_columns()
+    # Create today's net worth snapshot on startup
+    _create_startup_snapshot()
     yield
     # Shutdown
+
+
+def _create_startup_snapshot():
+    """Create a net worth snapshot on server startup."""
+    from core.database import get_session
+    from services.snapshot import create_daily_snapshot
+    session = next(get_session())
+    try:
+        create_daily_snapshot(session)
+    except Exception as e:
+        logging.getLogger(__name__).warning("Failed to create startup snapshot: %s", e)
+    finally:
+        session.close()
 
 from api import dashboard, portfolio, securities, real_estate, accounts, liabilities, retirement, budget, budget_ai, dashboard_ai, settings, statements
 
