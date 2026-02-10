@@ -4,11 +4,14 @@ Uses hybrid approach: rule-based parsing with AI fallback.
 """
 import csv
 import io
+import logging
 import re
 import base64
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -607,7 +610,7 @@ def convert_pdf_to_images(file_content: bytes) -> List[bytes]:
     except ImportError:
         return []
     except Exception as e:
-        print(f"PDF conversion error: {e}")
+        logger.warning("PDF conversion error: %s", e)
         return []
 
 
@@ -628,7 +631,7 @@ def extract_pdf_text(file_content: bytes) -> str:
     except ImportError:
         return ""
     except Exception as e:
-        print(f"PDF text extraction error: {e}")
+        logger.warning("PDF text extraction error: %s", e)
         return ""
 
 
