@@ -2,8 +2,8 @@ from sqlmodel import SQLModel, create_engine, Session
 import os
 
 # Dev: Use SQLite for now, easy to switch to Postgres later
-sqlite_file_name = "networth_v2.db"
-# Use absolute path relative to where we run the server, or just nice local path
+_backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sqlite_file_name = os.path.join(_backend_dir, "networth_v2.db")
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 
 connect_args = {"check_same_thread": False}

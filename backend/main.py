@@ -7,8 +7,8 @@ from core.database import init_db
 
 def _ensure_property_columns():
     """Add new columns to existing Property table (SQLite ALTER TABLE)."""
-    import os
-    db_path = os.path.join(os.path.dirname(__file__), "networth.db")
+    from core.database import sqlite_file_name
+    db_path = sqlite_file_name
     if not os.path.exists(db_path):
         return
     conn = sqlite3.connect(db_path)
