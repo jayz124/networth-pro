@@ -14,10 +14,12 @@ import { RetirementConfig } from "@/lib/retirement-logic"
 import { runMonteCarlo, SimulationResult } from "@/lib/monte-carlo"
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from "recharts"
 import { Play, Dice6 } from "lucide-react"
+import { useSettings } from "@/lib/settings-context"
 
 export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
     const [result, setResult] = React.useState<SimulationResult | null>(null)
     const [isRunning, setIsRunning] = React.useState(false)
+    const { formatCompactCurrency } = useSettings()
 
     const handleRun = async () => {
         setIsRunning(true)
@@ -26,12 +28,6 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
         const res = runMonteCarlo(config, 1000)
         setResult(res)
         setIsRunning(false)
-    }
-
-    const formatCurrency = (value: number) => {
-        if (Math.abs(value) >= 1000000) return `$${(value / 1000000).toFixed(1)}M`
-        if (Math.abs(value) >= 1000) return `$${(value / 1000).toFixed(0)}K`
-        return `$${value}`
     }
 
     // Prepare data for Recharts: merge percentiles
@@ -102,7 +98,7 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                             <div className="p-4 bg-muted/50 rounded-lg">
                                 <p className="text-sm font-medium">Median End Wealth</p>
                                 <p className="text-3xl font-bold">
-                                    {formatCurrency(result.percentile50[result.percentile50.length - 1]?.netWorth || 0)}
+                                    {formatCompactCurrency(result.percentile50[result.percentile50.length - 1]?.netWorth || 0)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                     50th percentile outcome
@@ -115,19 +111,19 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                             <div>
                                 <p className="text-xs text-muted-foreground">Downside (10th)</p>
                                 <p className="font-semibold text-red-500">
-                                    {formatCurrency(result.percentile10[result.percentile10.length - 1]?.netWorth || 0)}
+                                    {formatCompactCurrency(result.percentile10[result.percentile10.length - 1]?.netWorth || 0)}
                                 </p>
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground">Median (50th)</p>
                                 <p className="font-semibold text-blue-500">
-                                    {formatCurrency(result.percentile50[result.percentile50.length - 1]?.netWorth || 0)}
+                                    {formatCompactCurrency(result.percentile50[result.percentile50.length - 1]?.netWorth || 0)}
                                 </p>
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground">Upside (90th)</p>
                                 <p className="font-semibold text-emerald-500">
-                                    {formatCurrency(result.percentile90[result.percentile90.length - 1]?.netWorth || 0)}
+                                    {formatCompactCurrency(result.percentile90[result.percentile90.length - 1]?.netWorth || 0)}
                                 </p>
                             </div>
                         </div>
@@ -149,7 +145,7 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                                         tickLine={false}
                                         axisLine={false}
                                         tick={{ className: "fill-muted-foreground text-[11px]" }}
-                                        tickFormatter={formatCurrency}
+                                        tickFormatter={formatCompactCurrency}
                                         width={65}
                                         dx={-5}
                                     />
@@ -172,7 +168,7 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                                                                     </span>
                                                                 </div>
                                                                 <span className="text-xs font-medium font-mono text-foreground">
-                                                                    {formatCurrency(entry.value)}
+                                                                    {formatCompactCurrency(entry.value)}
                                                                 </span>
                                                             </div>
                                                         ))}

@@ -21,19 +21,12 @@ interface CashFlowChartProps {
 }
 
 export function CashFlowChart({ data, isLoading }: CashFlowChartProps) {
-    const { formatCurrency } = useSettings()
+    const { formatCurrency, formatCompactCurrency } = useSettings()
 
     const formatMonth = (month: string) => {
         const [year, m] = month.split("-")
         const date = new Date(parseInt(year), parseInt(m) - 1)
         return date.toLocaleDateString("en-US", { month: "short" })
-    }
-
-    const formatYAxis = (value: number) => {
-        if (value >= 1000) {
-            return `$${(value / 1000).toFixed(0)}k`
-        }
-        return `$${value}`
     }
 
     if (isLoading) {
@@ -99,7 +92,7 @@ export function CashFlowChart({ data, isLoading }: CashFlowChartProps) {
                                 tick={{ fill: "hsl(var(--muted-foreground))" }}
                             />
                             <YAxis
-                                tickFormatter={formatYAxis}
+                                tickFormatter={formatCompactCurrency}
                                 className="text-xs"
                                 tick={{ fill: "hsl(var(--muted-foreground))" }}
                             />

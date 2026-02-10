@@ -18,7 +18,7 @@ import { ForecastResponse, fetchBudgetForecast } from "@/lib/api"
 import { useSettings } from "@/lib/settings-context"
 
 export function BudgetForecast() {
-    const { formatCurrency } = useSettings()
+    const { formatCurrency, formatCompactCurrency } = useSettings()
     const [forecastData, setForecastData] = React.useState<ForecastResponse | null>(null)
     const [isLoading, setIsLoading] = React.useState(true)
     const [months, setMonths] = React.useState("6")
@@ -198,7 +198,7 @@ export function BudgetForecast() {
                                 <YAxis
                                     tick={{ fontSize: 12 }}
                                     tickLine={false}
-                                    tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                                    tickFormatter={formatCompactCurrency}
                                     className="text-muted-foreground"
                                 />
                                 <Tooltip

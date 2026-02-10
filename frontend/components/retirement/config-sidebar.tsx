@@ -14,6 +14,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useSettings } from "@/lib/settings-context"
 
 type ConfigSidebarProps = {
     config: RetirementConfig;
@@ -57,6 +58,7 @@ function CurrencyInput({
     onChange: (val: number) => void;
     help?: string;
 }) {
+    const { settings } = useSettings()
     return (
         <div className="grid gap-1.5">
             <Label className="flex items-center text-sm">
@@ -64,7 +66,7 @@ function CurrencyInput({
                 {help && <HelpTip content={help} />}
             </Label>
             <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{settings.currency.symbol}</span>
                 <Input
                     type="text"
                     value={formatCurrency(value)}
@@ -117,6 +119,7 @@ function PercentInput({
 }
 
 export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
+    const { settings } = useSettings()
 
     // Helper to update nested config
     const updateConfig = <K extends keyof RetirementConfig>(key: K, value: RetirementConfig[K]) => {
@@ -496,7 +499,7 @@ export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm">Net Cash Flow</span>
                                         <span className={`font-semibold ${netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                            {netCashFlow >= 0 ? '+' : ''}${formatCurrency(netCashFlow)}
+                                            {netCashFlow >= 0 ? '+' : ''}{settings.currency.symbol}{formatCurrency(netCashFlow)}
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted-foreground">

@@ -38,7 +38,7 @@ export function ValueHistoryChart({
 }: ValueHistoryChartProps) {
     const [history, setHistory] = React.useState<PropertyValueHistoryPoint[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
-    const { formatCurrency } = useSettings()
+    const { formatCurrency, formatCompactCurrency } = useSettings()
 
     React.useEffect(() => {
         if (open) {
@@ -53,12 +53,6 @@ export function ValueHistoryChart({
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr + "T00:00:00")
         return date.toLocaleDateString(undefined, { month: "short", year: "numeric" })
-    }
-
-    const formatValue = (value: number) => {
-        if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`
-        if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`
-        return `$${value}`
     }
 
     return (
@@ -104,7 +98,7 @@ export function ValueHistoryChart({
                                         axisLine={false}
                                     />
                                     <YAxis
-                                        tickFormatter={formatValue}
+                                        tickFormatter={formatCompactCurrency}
                                         tick={{ fontSize: 12 }}
                                         tickLine={false}
                                         axisLine={false}
@@ -126,7 +120,7 @@ export function ValueHistoryChart({
                                             stroke="hsl(var(--muted-foreground))"
                                             strokeDasharray="3 3"
                                             label={{
-                                                value: `Purchase: ${formatValue(purchasePrice)}`,
+                                                value: `Purchase: ${formatCompactCurrency(purchasePrice)}`,
                                                 position: "insideTopRight",
                                                 fontSize: 11,
                                                 fill: "hsl(var(--muted-foreground))",

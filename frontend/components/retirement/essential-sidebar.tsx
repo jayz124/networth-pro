@@ -14,6 +14,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useSettings } from "@/lib/settings-context"
 
 type EssentialSidebarProps = {
     config: EssentialConfig
@@ -66,6 +67,7 @@ function CurrencyInput({
     synced?: boolean
     syncSource?: string
 }) {
+    const { settings } = useSettings()
     return (
         <div className="grid gap-1.5">
             <Label className="flex items-center text-sm flex-wrap gap-1">
@@ -74,7 +76,7 @@ function CurrencyInput({
                 {synced && syncSource && <SyncedBadge source={syncSource} />}
             </Label>
             <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{settings.currency.symbol}</span>
                 <Input
                     type="text"
                     value={formatCurrency(value)}
@@ -127,6 +129,8 @@ function PercentInput({
 }
 
 export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSidebarProps) {
+    const { settings } = useSettings()
+
     // Helper to update config
     const updateConfig = <K extends keyof EssentialConfig>(key: K, value: EssentialConfig[K]) => {
         onChange({ ...config, [key]: value })
@@ -244,7 +248,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Total Investments</span>
                                     <span className="font-semibold text-emerald-500">
-                                        ${formatCurrency(totalInvestments)}
+                                        {settings.currency.symbol}{formatCurrency(totalInvestments)}
                                     </span>
                                 </div>
                             </div>
@@ -298,7 +302,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Home Equity</span>
                                     <span className={`font-semibold ${config.primaryHomeValue - config.totalMortgageBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                        ${formatCurrency(config.primaryHomeValue - config.totalMortgageBalance)}
+                                        {settings.currency.symbol}{formatCurrency(config.primaryHomeValue - config.totalMortgageBalance)}
                                     </span>
                                 </div>
                             </div>
@@ -334,7 +338,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Annual Savings</span>
                                     <span className={`font-semibold ${annualSavings >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                        {annualSavings >= 0 ? '+' : ''}${formatCurrency(annualSavings)}
+                                        {annualSavings >= 0 ? '+' : ''}{settings.currency.symbol}{formatCurrency(annualSavings)}
                                     </span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-1">
