@@ -20,7 +20,13 @@ export async function GET(request: NextRequest) {
     if (startDate || endDate) {
       where.date = {};
       if (startDate) where.date.gte = new Date(startDate);
-      if (endDate) where.date.lte = new Date(endDate + 'T23:59:59.999Z');
+      if (endDate) {
+        const end = new Date(endDate);
+        if (!endDate.includes('T')) {
+          end.setHours(23, 59, 59, 999);
+        }
+        where.date.lte = end;
+      }
     }
     if (categoryId) where.category_id = parseInt(categoryId, 10);
     if (accountId) where.account_id = parseInt(accountId, 10);
@@ -32,26 +38,18 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const [transactions, total] = await Promise.all([
-      prisma.transaction.findMany({
-        where,
-        include: {
-          category: { select: { id: true, name: true, icon: true, color: true, is_income: true } },
-          account: { select: { id: true, name: true } },
-        },
-        orderBy: { date: 'desc' },
-        take: limit,
-        skip: offset,
-      }),
-      prisma.transaction.count({ where }),
-    ]);
-
-    return NextResponse.json({
-      transactions,
-      total,
-      limit,
-      offset,
+    const transactions = await prisma.transaction.findMany({
+      where,
+      include: {
+        category: { select: { id: true, name: true, icon: true, color: true, is_income: true } },
+        account: { select: { id: true, name: true } },
+      },
+      orderBy: { date: 'desc' },
+      take: limit,
+      skip: offset,
     });
+
+    return NextResponse.json(transactions);
   } catch (e) {
     console.error('Failed to list transactions:', e);
     return NextResponse.json({ error: 'Failed to list transactions' }, { status: 500 });
