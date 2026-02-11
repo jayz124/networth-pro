@@ -33,7 +33,7 @@ class Portfolio(BaseModel, table=True):
 
 class PortfolioHolding(BaseModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    portfolio_id: int = Field(foreign_key="portfolio.id")
+    portfolio_id: int = Field(foreign_key="portfolio.id", ondelete="CASCADE")
     ticker: str
     asset_type: str
     quantity: float = Field(ge=0)
@@ -54,8 +54,8 @@ class BalanceSnapshot(BaseModel, table=True):
     date: datetime = Field(index=True)
 
     # identifying the entity
-    account_id: Optional[int] = Field(default=None, foreign_key="account.id")
-    liability_id: Optional[int] = Field(default=None, foreign_key="liability.id")
+    account_id: Optional[int] = Field(default=None, foreign_key="account.id", ondelete="CASCADE")
+    liability_id: Optional[int] = Field(default=None, foreign_key="liability.id", ondelete="CASCADE")
 
     # value
     amount: float
@@ -100,7 +100,7 @@ class Property(BaseModel, table=True):
 
 class PropertyValuationCache(BaseModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    property_id: int = Field(foreign_key="property.id", index=True)
+    property_id: int = Field(foreign_key="property.id", index=True, ondelete="CASCADE")
     provider: str = Field(default="rentcast")  # rentcast
     estimated_value: Optional[float] = None
     estimated_rent_monthly: Optional[float] = None
@@ -123,7 +123,7 @@ class PropertyValueHistory(BaseModel, table=True):
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    property_id: int = Field(foreign_key="property.id", index=True)
+    property_id: int = Field(foreign_key="property.id", index=True, ondelete="CASCADE")
     date: str = Field(index=True)  # ISO format: YYYY-MM-DD
     estimated_value: float
     source: str = Field(default="rentcast")  # rentcast, manual, tax_assessment
@@ -132,7 +132,7 @@ class PropertyValueHistory(BaseModel, table=True):
 
 class Mortgage(BaseModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    property_id: int = Field(foreign_key="property.id")
+    property_id: int = Field(foreign_key="property.id", ondelete="CASCADE")
     lender: Optional[str] = None
     original_principal: float = Field(ge=0)
     current_balance: float = Field(ge=0)
@@ -167,8 +167,8 @@ class Transaction(BaseModel, table=True):
     date: datetime = Field(index=True)
     description: str
     amount: float  # Positive=income, negative=expense
-    category_id: Optional[int] = Field(default=None, foreign_key="budgetcategory.id")
-    account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    category_id: Optional[int] = Field(default=None, foreign_key="budgetcategory.id", ondelete="SET NULL")
+    account_id: Optional[int] = Field(default=None, foreign_key="account.id", ondelete="SET NULL")
     is_recurring: bool = Field(default=False)
     recurrence_frequency: Optional[str] = None  # daily, weekly, bi-weekly, monthly, yearly
     merchant: Optional[str] = None
@@ -181,7 +181,7 @@ class Subscription(BaseModel, table=True):
     name: str
     amount: float = Field(ge=0)
     frequency: str  # monthly, yearly
-    category_id: Optional[int] = Field(default=None, foreign_key="budgetcategory.id")
+    category_id: Optional[int] = Field(default=None, foreign_key="budgetcategory.id", ondelete="SET NULL")
     next_billing_date: Optional[datetime] = None
     is_active: bool = Field(default=True)
 
