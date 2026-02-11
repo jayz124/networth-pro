@@ -30,12 +30,18 @@ backend/.venv/
 
 # Database
 *.db
+*.db-shm
+*.db-wal
 *.sqlite3
 
 # Environment variables
 .env
 .env.local
 .env.*.local
+
+# Encryption keys
+.secrets/
+backend/.secrets/
 
 # Node.js
 node_modules/

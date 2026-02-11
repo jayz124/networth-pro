@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from datetime import datetime, timezone
 
 from core.database import get_session, engine, init_db
+from core.encryption import encrypt as encrypt_value, decrypt as decrypt_value, rotate_key
 from models import (
     AppSettings, Account, Liability, BalanceSnapshot, Portfolio, PortfolioHolding,
     SecurityInfo, PriceCache, Property, PropertyValuationCache, PropertyValueHistory,
@@ -51,10 +52,13 @@ KNOWN_SETTINGS = {
 
 
 def mask_secret(value: Optional[str]) -> Optional[str]:
-    """Mask a secret value for display."""
-    if not value or len(value) < 8:
-        return "••••••••" if value else None
-    return value[:4] + "••••••••" + value[-4:]
+    """Mask a secret value for display.
+
+    Returns a fixed mask string — never exposes any portion of the actual key.
+    """
+    if not value:
+        return None
+    return "••••••••••••"
 
 
 @router.get("/settings")
@@ -148,14 +152,23 @@ _EXPORT_TABLES = [
 ]
 
 
-def _row_to_dict(row) -> dict:
-    """Convert a SQLModel row to a JSON-serializable dict."""
+def _row_to_dict(row, decrypt_secrets: bool = False) -> dict:
+    """Convert a SQLModel row to a JSON-serializable dict.
+
+    If decrypt_secrets is True and this is an AppSettings row with is_secret,
+    the value is decrypted before serialization (for exports).
+    """
     d = {}
     for col in row.__class__.__table__.columns:
         val = getattr(row, col.name)
         if isinstance(val, datetime):
             val = val.isoformat()
         d[col.name] = val
+
+    # Decrypt secrets for export so backups contain usable values
+    if decrypt_secrets and isinstance(row, AppSettings) and row.is_secret and row.value:
+        d["value"] = decrypt_value(row.value)
+
     return d
 
 
@@ -183,7 +196,9 @@ def export_data(session: Session = Depends(get_session)):
     for key, model in _EXPORT_TABLES:
         try:
             rows = session.exec(select(model)).all()
-            data[key] = [_row_to_dict(row) for row in rows]
+            # Decrypt secrets in exports so backups are portable
+            decrypt = (key == "app_settings")
+            data[key] = [_row_to_dict(row, decrypt_secrets=decrypt) for row in rows]
         except Exception as e:
             logger.warning("Skipping table %s during export: %s", key, e)
             data[key] = []
@@ -220,6 +235,9 @@ async def import_data(file: UploadFile = File(...), session: Session = Depends(g
         count = 0
         for row_data in rows_data:
             try:
+                # Encrypt secret settings on import
+                if key == "app_settings" and row_data.get("is_secret") and row_data.get("value"):
+                    row_data = {**row_data, "value": encrypt_value(row_data["value"])}
                 row = model(**row_data)
                 session.add(row)
                 count += 1
@@ -230,6 +248,43 @@ async def import_data(file: UploadFile = File(...), session: Session = Depends(g
     session.commit()
     logger.info("Data imported: %s", imported_counts)
     return {"message": "Data imported successfully", "counts": imported_counts}
+
+
+@router.post("/settings/encrypt-existing")
+def encrypt_existing_secrets(session: Session = Depends(get_session)):
+    """Encrypt any plaintext secret values in the database.
+
+    Safe to call multiple times — skips already-encrypted values.
+    Run this once after upgrading to the encrypted storage version.
+    """
+    from core.encryption import is_encrypted
+
+    migrated = 0
+    settings = session.exec(select(AppSettings).where(AppSettings.is_secret == True)).all()
+
+    for setting in settings:
+        if setting.value and not is_encrypted(setting.value):
+            setting.value = encrypt_value(setting.value)
+            session.add(setting)
+            migrated += 1
+
+    if migrated:
+        session.commit()
+
+    return {"message": f"Encrypted {migrated} plaintext secret(s)", "migrated": migrated}
+
+
+@router.post("/settings/rotate-encryption-key")
+def rotate_encryption_key():
+    """Generate a new encryption key and re-encrypt all secrets.
+
+    The old key is replaced. This is irreversible.
+    """
+    result = rotate_key()
+    return {
+        "message": "Encryption key rotated successfully",
+        **result,
+    }
 
 
 @router.get("/settings/{key}")
@@ -276,18 +331,23 @@ def update_setting(
 
     meta = KNOWN_SETTINGS[key]
 
+    # Encrypt secret values before storage
+    store_value = data.value
+    if meta["is_secret"] and store_value:
+        store_value = encrypt_value(store_value)
+
     # Find or create the setting
     setting = session.exec(
         select(AppSettings).where(AppSettings.key == key)
     ).first()
 
     if setting:
-        setting.value = data.value
+        setting.value = store_value
         setting.updated_at = datetime.now(timezone.utc)
     else:
         setting = AppSettings(
             key=key,
-            value=data.value,
+            value=store_value,
             is_secret=meta["is_secret"],
         )
 
@@ -297,9 +357,9 @@ def update_setting(
 
     return {
         "key": key,
-        "value": mask_secret(setting.value) if meta["is_secret"] else setting.value,
+        "value": mask_secret(data.value) if meta["is_secret"] else setting.value,
         "is_secret": meta["is_secret"],
-        "is_set": bool(setting.value),
+        "is_set": bool(data.value),
         "description": meta["description"],
         "updated_at": setting.updated_at,
         "message": "Setting updated successfully",
@@ -327,8 +387,14 @@ def delete_setting(key: str, session: Session = Depends(get_session)):
 
 # Internal helper to get settings (for use by other modules)
 def get_setting_value(session: Session, key: str) -> Optional[str]:
-    """Get the actual value of a setting (not masked)."""
+    """Get the actual (decrypted) value of a setting."""
     setting = session.exec(
         select(AppSettings).where(AppSettings.key == key)
     ).first()
-    return setting.value if setting else None
+    if not setting or not setting.value:
+        return None
+    # Decrypt if this is a secret setting
+    meta = KNOWN_SETTINGS.get(key, {})
+    if meta.get("is_secret"):
+        return decrypt_value(setting.value)
+    return setting.value
