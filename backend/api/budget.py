@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from typing import List, Optional
 from pydantic import BaseModel
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 
 from core.database import get_session
@@ -180,7 +180,7 @@ def update_category(
     if data.is_income is not None:
         category.is_income = data.is_income
 
-    category.updated_at = datetime.utcnow()
+    category.updated_at = datetime.now(timezone.utc)
     session.add(category)
     session.commit()
     session.refresh(category)
@@ -402,7 +402,7 @@ def update_transaction(
     if data.notes is not None:
         transaction.notes = data.notes
 
-    transaction.updated_at = datetime.utcnow()
+    transaction.updated_at = datetime.now(timezone.utc)
     session.add(transaction)
     session.commit()
     session.refresh(transaction)
@@ -508,7 +508,7 @@ def update_subscription(
     if data.is_active is not None:
         subscription.is_active = data.is_active
 
-    subscription.updated_at = datetime.utcnow()
+    subscription.updated_at = datetime.now(timezone.utc)
     session.add(subscription)
     session.commit()
     session.refresh(subscription)
@@ -547,10 +547,10 @@ def get_budget_summary(
     """Get monthly totals by category."""
     # Default to current month
     if not start_date:
-        today = datetime.utcnow()
+        today = datetime.now(timezone.utc)
         start_date = datetime(today.year, today.month, 1)
     if not end_date:
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
 
     transactions = session.exec(
         select(Transaction)
@@ -615,7 +615,7 @@ def get_cash_flow(
     months: int = Query(default=6, le=24),
 ):
     """Get income vs expenses over time (monthly)."""
-    end_date = datetime.utcnow()
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=months * 30)
 
     transactions = session.exec(
@@ -691,7 +691,7 @@ def get_forecast(
             return 30  # Default to monthly
 
     # Build forecast data
-    today = datetime.utcnow()
+    today = datetime.now(timezone.utc)
     forecast_data = []
 
     for month_offset in range(months):

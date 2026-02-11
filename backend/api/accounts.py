@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.database import get_session
 from core.queries import get_latest_account_balances
@@ -103,7 +103,7 @@ def create_account(data: AccountCreate, session: Session = Depends(get_session))
     # Create initial balance snapshot
     if data.current_balance != 0:
         snapshot = BalanceSnapshot(
-            date=datetime.utcnow(),
+            date=datetime.now(timezone.utc),
             account_id=account.id,
             amount=data.current_balance,
             currency=data.currency,
@@ -119,7 +119,7 @@ def create_account(data: AccountCreate, session: Session = Depends(get_session))
         "currency": account.currency,
         "tags": account.tags,
         "current_balance": data.current_balance,
-        "last_updated": datetime.utcnow() if data.current_balance != 0 else None,
+        "last_updated": datetime.now(timezone.utc) if data.current_balance != 0 else None,
         "created_at": account.created_at,
         "updated_at": account.updated_at,
     }
@@ -221,7 +221,7 @@ def update_account(
     if data.tags is not None:
         account.tags = data.tags
 
-    account.updated_at = datetime.utcnow()
+    account.updated_at = datetime.now(timezone.utc)
     session.add(account)
     session.commit()
     session.refresh(account)
@@ -279,14 +279,14 @@ def update_balance(
         raise HTTPException(status_code=404, detail="Account not found")
 
     snapshot = BalanceSnapshot(
-        date=data.date or datetime.utcnow(),
+        date=data.date or datetime.now(timezone.utc),
         account_id=account_id,
         amount=data.amount,
         currency=account.currency,
     )
     session.add(snapshot)
 
-    account.updated_at = datetime.utcnow()
+    account.updated_at = datetime.now(timezone.utc)
     session.add(account)
 
     session.commit()

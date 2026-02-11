@@ -15,7 +15,7 @@ import json
 import logging
 import hashlib
 from typing import Optional, List, Dict, Any, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 import time
 
@@ -108,7 +108,7 @@ def _get_cached_categorization(cache_key: str) -> Optional[Dict]:
     """Get cached categorization if available and not expired."""
     if cache_key in _categorization_cache:
         result, cached_at = _categorization_cache[cache_key]
-        if datetime.utcnow() - cached_at < _CACHE_TTL:
+        if datetime.now(timezone.utc) - cached_at < _CACHE_TTL:
             logger.debug(f"Cache hit for key {cache_key[:8]}...")
             return result
         else:
@@ -118,7 +118,7 @@ def _get_cached_categorization(cache_key: str) -> Optional[Dict]:
 
 def _cache_categorization(cache_key: str, result: Dict):
     """Cache a categorization result."""
-    _categorization_cache[cache_key] = (result, datetime.utcnow())
+    _categorization_cache[cache_key] = (result, datetime.now(timezone.utc))
 
     # Limit cache size
     if len(_categorization_cache) > 1000:

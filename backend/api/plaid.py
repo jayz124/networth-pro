@@ -1,7 +1,7 @@
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Body
 from pydantic import BaseModel
 from sqlmodel import Session, select

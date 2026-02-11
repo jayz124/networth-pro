@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from typing import List, Optional
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.database import get_session
 from models import RetirementPlan
@@ -166,7 +166,7 @@ def update_plan(
     if data.config_json is not None:
         plan.config_json = data.config_json
 
-    plan.updated_at = datetime.utcnow()
+    plan.updated_at = datetime.now(timezone.utc)
     session.add(plan)
     session.commit()
     session.refresh(plan)

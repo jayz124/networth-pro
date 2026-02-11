@@ -4,7 +4,7 @@ Dashboard AI API - Cross-domain financial insights and financial stories.
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 
 from core.database import get_session
@@ -211,13 +211,13 @@ def get_financial_stories(
     if refresh:
         seed = int(time.time())
     else:
-        seed = int(datetime.utcnow().strftime("%Y%m%d"))
+        seed = int(datetime.now(timezone.utc).strftime("%Y%m%d"))
 
     # Gather data
     networth_data = _get_networth_data(session)
 
     # Budget summary (current month)
-    today = datetime.utcnow()
+    today = datetime.now(timezone.utc)
     start_of_month = datetime(today.year, today.month, 1)
     transactions = session.exec(
         select(Transaction)

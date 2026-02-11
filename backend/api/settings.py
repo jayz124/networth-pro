@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlmodel import Session, SQLModel, select
 from typing import Optional
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.database import get_session, engine, init_db
 from models import (
@@ -178,7 +178,7 @@ def reset_database(
 @router.get("/settings/export")
 def export_data(session: Session = Depends(get_session)):
     """Export all data as JSON."""
-    data = {"version": "1.0", "exported_at": datetime.utcnow().isoformat()}
+    data = {"version": "1.0", "exported_at": datetime.now(timezone.utc).isoformat()}
 
     for key, model in _EXPORT_TABLES:
         try:
@@ -283,7 +283,7 @@ def update_setting(
 
     if setting:
         setting.value = data.value
-        setting.updated_at = datetime.utcnow()
+        setting.updated_at = datetime.now(timezone.utc)
     else:
         setting = AppSettings(
             key=key,
@@ -318,7 +318,7 @@ def delete_setting(key: str, session: Session = Depends(get_session)):
 
     if setting:
         setting.value = None
-        setting.updated_at = datetime.utcnow()
+        setting.updated_at = datetime.now(timezone.utc)
         session.add(setting)
         session.commit()
 

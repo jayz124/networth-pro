@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from typing import List, Optional
 from pydantic import BaseModel
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from core.database import get_session
 from models import BudgetCategory, Transaction, Subscription
@@ -129,7 +129,7 @@ def auto_categorize(
             category_id = category_map[category_name]
             txn.category_id = category_id
             txn.ai_categorized = (method == "ai")
-            txn.updated_at = datetime.utcnow()
+            txn.updated_at = datetime.now(timezone.utc)
             session.add(txn)
             updated_count += 1
 
@@ -166,7 +166,7 @@ def get_insights(
     api_key = load_ai_config(session)
 
     # Get current month's summary
-    today = datetime.utcnow()
+    today = datetime.now(timezone.utc)
     start_date = datetime(today.year, today.month, 1)
     end_date = today
 
@@ -325,7 +325,7 @@ def detect_subscriptions(
     Uses pattern detection on historical transactions.
     """
     # Get transactions from past N months
-    end_date = datetime.utcnow()
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=months * 30)
 
     transactions = session.exec(

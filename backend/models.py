@@ -1,11 +1,11 @@
 from typing import Optional
 from sqlmodel import Field, SQLModel
 from sqlalchemy import Index
-from datetime import datetime
+from datetime import datetime, timezone
 
 class BaseModel(SQLModel):
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Account(BaseModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -71,7 +71,7 @@ class SecurityInfo(BaseModel, table=True):
     exchange: Optional[str] = None
     currency: str = Field(default="USD")
     sector: Optional[str] = None
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # Price cache (5-min TTL)
@@ -81,7 +81,7 @@ class PriceCache(BaseModel, table=True):
     current_price: float = Field(ge=0)
     previous_close: Optional[float] = Field(default=None, ge=0)
     change_percent: Optional[float] = None
-    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # Real Estate
@@ -114,7 +114,7 @@ class PropertyValuationCache(BaseModel, table=True):
     square_footage: Optional[int] = None
     year_built: Optional[int] = None
     currency: str = Field(default="USD")
-    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class PropertyValueHistory(BaseModel, table=True):
@@ -192,7 +192,7 @@ class NetWorthSnapshot(SQLModel, table=True):
     total_liabilities: float = Field(default=0.0)
     total_mortgages: float = Field(default=0.0)
     net_worth: float = Field(default=0.0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # Plaid Integration

@@ -5,7 +5,7 @@ Creates daily snapshots of all net worth components so the history chart
 shows real values instead of projecting today's portfolio/RE backward.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
 from sqlmodel import Session, select
 
@@ -100,7 +100,7 @@ def create_daily_snapshot(session: Session) -> NetWorthSnapshot:
     Idempotent: calling multiple times on the same day updates the
     existing row rather than creating duplicates.
     """
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     components = compute_net_worth_components(session)
 
     existing = session.exec(

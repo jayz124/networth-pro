@@ -10,7 +10,7 @@ Features:
 import logging
 import httpx
 from typing import Optional, List, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlmodel import Session, select
 
 from models import PropertyValuationCache, PropertyValueHistory, Property
@@ -130,7 +130,7 @@ async def get_value_estimate(address: str, session: Session, property_id: Option
             .where(PropertyValuationCache.provider == "rentcast")
         ).first()
 
-        if cached and (datetime.utcnow() - cached.fetched_at) < VALUATION_CACHE_TTL:
+        if cached and (datetime.now(timezone.utc) - cached.fetched_at) < VALUATION_CACHE_TTL:
             return {
                 "estimated_value": cached.estimated_value,
                 "value_range_low": cached.value_range_low,
@@ -197,7 +197,7 @@ async def get_rent_estimate(address: str, session: Session, property_id: Optiona
             cached.estimated_rent_monthly = result["estimated_rent_monthly"]
             cached.rent_range_low = result.get("rent_range_low")
             cached.rent_range_high = result.get("rent_range_high")
-            cached.fetched_at = datetime.utcnow()
+            cached.fetched_at = datetime.now(timezone.utc)
             session.add(cached)
             session.commit()
 
@@ -251,7 +251,7 @@ def _update_valuation_cache(session: Session, property_id: int, value_data: dict
     cached.bathrooms = value_data.get("bathrooms")
     cached.square_footage = value_data.get("square_footage")
     cached.year_built = value_data.get("year_built")
-    cached.fetched_at = datetime.utcnow()
+    cached.fetched_at = datetime.now(timezone.utc)
 
     if rent_data:
         cached.estimated_rent_monthly = rent_data.get("estimated_rent_monthly")
@@ -262,7 +262,7 @@ def _update_valuation_cache(session: Session, property_id: int, value_data: dict
     session.commit()
 
     # Also record a history point
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     existing_history = session.exec(
         select(PropertyValueHistory)
         .where(PropertyValueHistory.property_id == property_id)
@@ -299,7 +299,7 @@ async def refresh_property_valuation(property_id: int, session: Session) -> Opti
     prop.valuation_provider = "rentcast"
     if result.get("provider_property_id"):
         prop.provider_property_id = result["provider_property_id"]
-    prop.updated_at = datetime.utcnow()
+    prop.updated_at = datetime.now(timezone.utc)
     session.add(prop)
     session.commit()
 
@@ -375,5 +375,5 @@ def get_cached_valuation(property_id: int, session: Session) -> Optional[Dict[st
         "year_built": cached.year_built,
         "provider": cached.provider,
         "fetched_at": cached.fetched_at.isoformat(),
-        "is_stale": (datetime.utcnow() - cached.fetched_at) > VALUATION_CACHE_TTL,
+        "is_stale": (datetime.now(timezone.utc) - cached.fetched_at) > VALUATION_CACHE_TTL,
     }

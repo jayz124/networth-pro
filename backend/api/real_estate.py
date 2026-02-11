@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.database import get_session
 from models import Property, Mortgage, PropertyValuationCache
@@ -301,7 +301,7 @@ def update_property(
     if data.valuation_provider is not None:
         prop.valuation_provider = data.valuation_provider
 
-    prop.updated_at = datetime.utcnow()
+    prop.updated_at = datetime.now(timezone.utc)
     session.add(prop)
     session.commit()
     session.refresh(prop)
@@ -450,7 +450,7 @@ def update_mortgage(
     if data.is_active is not None:
         mortgage.is_active = data.is_active
 
-    mortgage.updated_at = datetime.utcnow()
+    mortgage.updated_at = datetime.now(timezone.utc)
     session.add(mortgage)
     session.commit()
     session.refresh(mortgage)

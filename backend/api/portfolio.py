@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.database import get_session
 from models import Portfolio, PortfolioHolding
@@ -144,7 +144,7 @@ def update_portfolio(
     if data.is_active is not None:
         portfolio.is_active = data.is_active
 
-    portfolio.updated_at = datetime.utcnow()
+    portfolio.updated_at = datetime.now(timezone.utc)
     session.add(portfolio)
     session.commit()
     session.refresh(portfolio)
@@ -250,7 +250,7 @@ def update_holding(
     if holding.current_price and holding.quantity:
         holding.current_value = holding.current_price * holding.quantity
 
-    holding.updated_at = datetime.utcnow()
+    holding.updated_at = datetime.now(timezone.utc)
     session.add(holding)
     session.commit()
     session.refresh(holding)
@@ -297,7 +297,7 @@ def refresh_portfolio_prices(portfolio_id: int, session: Session = Depends(get_s
         if quote and quote.get("current_price"):
             holding.current_price = quote["current_price"]
             holding.current_value = holding.current_price * holding.quantity
-            holding.updated_at = datetime.utcnow()
+            holding.updated_at = datetime.now(timezone.utc)
             session.add(holding)
             updated_count += 1
 
@@ -336,7 +336,7 @@ def refresh_all_portfolios(session: Session = Depends(get_session)):
         if quote and quote.get("current_price"):
             holding.current_price = quote["current_price"]
             holding.current_value = holding.current_price * holding.quantity
-            holding.updated_at = datetime.utcnow()
+            holding.updated_at = datetime.now(timezone.utc)
             session.add(holding)
             updated_count += 1
 

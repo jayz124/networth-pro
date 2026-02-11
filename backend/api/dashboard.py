@@ -2,7 +2,7 @@
 Dashboard API - Net worth calculation including cash, investments, and real estate.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 from typing import Dict
@@ -200,7 +200,7 @@ def get_networth_history(session: Session = Depends(get_session)):
         select(NetWorthSnapshot).order_by(NetWorthSnapshot.date)
     ).all()
 
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     history_list = []
     for snap in nw_snapshots:
@@ -396,7 +396,7 @@ def _upsert_today_snapshot(
     net_worth: float,
 ) -> None:
     """Persist today's net worth snapshot (create or update)."""
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     try:
         existing = session.exec(
             select(NetWorthSnapshot).where(NetWorthSnapshot.date == today)

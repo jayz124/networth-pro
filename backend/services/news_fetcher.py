@@ -8,7 +8,7 @@ import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 import hashlib
 
@@ -172,7 +172,7 @@ def fetch_relevant_news(
     cache_key = hashlib.md5(cache_input.encode()).hexdigest()
 
     # Check cache
-    now = datetime.utcnow().timestamp()
+    now = datetime.now(timezone.utc).timestamp()
     if cache_key in _news_cache:
         cached_articles, cached_at = _news_cache[cache_key]
         if now - cached_at < _NEWS_CACHE_TTL:

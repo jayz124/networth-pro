@@ -4,7 +4,7 @@ Provides security search, quotes, and batch price fetching with caching.
 """
 import logging
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlmodel import Session, select
 import yfinance as yf
 
@@ -103,7 +103,7 @@ def get_quote(ticker: str, session: Session) -> Optional[Dict[str, Any]]:
         .order_by(PriceCache.fetched_at.desc())
     ).first()
 
-    if cached and cached.fetched_at > datetime.utcnow() - timedelta(minutes=PRICE_CACHE_TTL):
+    if cached and cached.fetched_at > datetime.now(timezone.utc) - timedelta(minutes=PRICE_CACHE_TTL):
         return {
             "ticker": cached.ticker,
             "current_price": cached.current_price,
@@ -133,7 +133,7 @@ def get_quote(ticker: str, session: Session) -> Optional[Dict[str, Any]]:
             cached.current_price = current_price or 0
             cached.previous_close = previous_close
             cached.change_percent = change_percent
-            cached.fetched_at = datetime.utcnow()
+            cached.fetched_at = datetime.now(timezone.utc)
             session.add(cached)
         else:
             new_cache = PriceCache(
@@ -141,7 +141,7 @@ def get_quote(ticker: str, session: Session) -> Optional[Dict[str, Any]]:
                 current_price=current_price or 0,
                 previous_close=previous_close,
                 change_percent=change_percent,
-                fetched_at=datetime.utcnow(),
+                fetched_at=datetime.now(timezone.utc),
             )
             session.add(new_cache)
 
@@ -159,7 +159,7 @@ def get_quote(ticker: str, session: Session) -> Optional[Dict[str, Any]]:
                 exchange=info.get("exchange"),
                 currency=info.get("currency", "USD"),
                 sector=info.get("sector"),
-                last_updated=datetime.utcnow(),
+                last_updated=datetime.now(timezone.utc),
             )
             session.add(security_info)
 
@@ -171,7 +171,7 @@ def get_quote(ticker: str, session: Session) -> Optional[Dict[str, Any]]:
             "current_price": current_price,
             "previous_close": previous_close,
             "change_percent": change_percent,
-            "fetched_at": datetime.utcnow().isoformat(),
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
             "cached": False,
         }
     except Exception as e:
@@ -199,7 +199,7 @@ def get_batch_quotes(tickers: List[str], session: Session) -> Dict[str, Dict[str
             .order_by(PriceCache.fetched_at.desc())
         ).first()
 
-        if cached and cached.fetched_at > datetime.utcnow() - timedelta(minutes=PRICE_CACHE_TTL):
+        if cached and cached.fetched_at > datetime.now(timezone.utc) - timedelta(minutes=PRICE_CACHE_TTL):
             results[ticker] = {
                 "ticker": cached.ticker,
                 "current_price": cached.current_price,
@@ -238,14 +238,14 @@ def get_batch_quotes(tickers: List[str], session: Session) -> Dict[str, Dict[str
                             cached.current_price = current_price or 0
                             cached.previous_close = previous_close
                             cached.change_percent = change_percent
-                            cached.fetched_at = datetime.utcnow()
+                            cached.fetched_at = datetime.now(timezone.utc)
                         else:
                             cached = PriceCache(
                                 ticker=ticker,
                                 current_price=current_price or 0,
                                 previous_close=previous_close,
                                 change_percent=change_percent,
-                                fetched_at=datetime.utcnow(),
+                                fetched_at=datetime.now(timezone.utc),
                             )
                             session.add(cached)
 
@@ -254,7 +254,7 @@ def get_batch_quotes(tickers: List[str], session: Session) -> Dict[str, Dict[str
                             "current_price": current_price,
                             "previous_close": previous_close,
                             "change_percent": change_percent,
-                            "fetched_at": datetime.utcnow().isoformat(),
+                            "fetched_at": datetime.now(timezone.utc).isoformat(),
                             "cached": False,
                         }
                 except Exception as e:

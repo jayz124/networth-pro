@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from typing import List, Optional
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.database import get_session
 from core.queries import get_latest_liability_balances
@@ -107,7 +107,7 @@ def create_liability(data: LiabilityCreate, session: Session = Depends(get_sessi
     # Create initial balance snapshot
     if data.current_balance != 0:
         snapshot = BalanceSnapshot(
-            date=datetime.utcnow(),
+            date=datetime.now(timezone.utc),
             liability_id=liability.id,
             amount=data.current_balance,
             currency=data.currency,
@@ -122,7 +122,7 @@ def create_liability(data: LiabilityCreate, session: Session = Depends(get_sessi
         "currency": liability.currency,
         "tags": liability.tags,
         "current_balance": data.current_balance,
-        "last_updated": datetime.utcnow() if data.current_balance != 0 else None,
+        "last_updated": datetime.now(timezone.utc) if data.current_balance != 0 else None,
         "created_at": liability.created_at,
         "updated_at": liability.updated_at,
     }
@@ -214,7 +214,7 @@ def update_liability(
     if data.tags is not None:
         liability.tags = data.tags
 
-    liability.updated_at = datetime.utcnow()
+    liability.updated_at = datetime.now(timezone.utc)
     session.add(liability)
     session.commit()
     session.refresh(liability)
@@ -271,14 +271,14 @@ def update_balance(
         raise HTTPException(status_code=404, detail="Liability not found")
 
     snapshot = BalanceSnapshot(
-        date=data.date or datetime.utcnow(),
+        date=data.date or datetime.now(timezone.utc),
         liability_id=liability_id,
         amount=data.amount,
         currency=liability.currency,
     )
     session.add(snapshot)
 
-    liability.updated_at = datetime.utcnow()
+    liability.updated_at = datetime.now(timezone.utc)
     session.add(liability)
 
     session.commit()
