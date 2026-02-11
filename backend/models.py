@@ -38,7 +38,7 @@ class PortfolioHolding(BaseModel, table=True):
     asset_type: str
     quantity: float = Field(ge=0)
     purchase_price: Optional[float] = Field(default=None, ge=0)
-    purchase_date: Optional[str] = None
+    purchase_date: Optional[str] = None  # ISO format: YYYY-MM-DD
     currency: str = Field(default="USD")
     current_price: Optional[float] = Field(default=None, ge=0)  # Cached price
     current_value: Optional[float] = Field(default=None, ge=0)  # Calculated (qty * price)
@@ -91,7 +91,7 @@ class Property(BaseModel, table=True):
     address: str
     property_type: str  # residential, commercial, rental, land
     purchase_price: float = Field(ge=0)
-    purchase_date: Optional[str] = None
+    purchase_date: Optional[str] = None  # ISO format: YYYY-MM-DD
     current_value: float = Field(ge=0)
     currency: str = Field(default="USD")
     provider_property_id: Optional[str] = None  # RentCast property ID
@@ -118,9 +118,13 @@ class PropertyValuationCache(BaseModel, table=True):
 
 
 class PropertyValueHistory(BaseModel, table=True):
+    __table_args__ = (
+        Index("ix_propertyvaluehistory_prop_date_source", "property_id", "date", "source", unique=True),
+    )
+
     id: Optional[int] = Field(default=None, primary_key=True)
     property_id: int = Field(foreign_key="property.id", index=True)
-    date: str  # YYYY-MM-DD
+    date: str = Field(index=True)  # ISO format: YYYY-MM-DD
     estimated_value: float
     source: str = Field(default="rentcast")  # rentcast, manual, tax_assessment
     currency: str = Field(default="USD")
