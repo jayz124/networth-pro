@@ -4,8 +4,44 @@ import * as React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { BookOpen, RefreshCw, ExternalLink, Newspaper } from "lucide-react"
+import {
+    BookOpen,
+    RefreshCw,
+    ExternalLink,
+    Newspaper,
+    TrendingUp,
+    RefreshCcw,
+    Scale,
+    Umbrella,
+    Target,
+    Home,
+    Sprout,
+    Lightbulb,
+} from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import { FinancialStory, NewsArticle, fetchFinancialStories } from "@/lib/api"
+
+const STORY_ICON_MAP: Record<string, { icon: LucideIcon; className: string }> = {
+    // By emoji
+    "📈": { icon: TrendingUp, className: "text-gain" },
+    "🔄": { icon: RefreshCcw, className: "text-info" },
+    "⚖️": { icon: Scale, className: "text-warning" },
+    "🏖️": { icon: Umbrella, className: "text-info" },
+    "🎯": { icon: Target, className: "text-warning" },
+    "🏠": { icon: Home, className: "text-success" },
+    "🌱": { icon: Sprout, className: "text-gain" },
+    "💡": { icon: Lightbulb, className: "text-info" },
+    // By story type
+    "growth": { icon: TrendingUp, className: "text-gain" },
+    "perspective": { icon: RefreshCcw, className: "text-info" },
+    "comparison": { icon: Scale, className: "text-warning" },
+    "freedom": { icon: Umbrella, className: "text-info" },
+    "milestone": { icon: Target, className: "text-warning" },
+}
+
+function getStoryIcon(story: FinancialStory): { icon: LucideIcon; className: string } {
+    return STORY_ICON_MAP[story.emoji] || STORY_ICON_MAP[story.type] || { icon: Lightbulb, className: "text-muted-foreground" }
+}
 
 export function FinancialStoriesCard() {
     const [stories, setStories] = React.useState<FinancialStory[]>([])
@@ -72,7 +108,14 @@ export function FinancialStoriesCard() {
                                         className="p-4 rounded-lg border bg-muted/30"
                                     >
                                         <div className="flex items-start gap-3">
-                                            <span className="text-2xl leading-none">{story.emoji}</span>
+                                            {(() => {
+                                                const { icon: Icon, className } = getStoryIcon(story)
+                                                return (
+                                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                                                        <Icon className={`h-4 w-4 ${className}`} />
+                                                    </div>
+                                                )
+                                            })()}
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="font-semibold text-sm">{story.headline}</h4>
                                                 <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
