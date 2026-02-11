@@ -101,7 +101,7 @@ def create_liability(data: LiabilityCreate, session: Session = Depends(get_sessi
         tags=data.tags,
     )
     session.add(liability)
-    session.commit()
+    session.flush()  # Assigns liability.id without committing
     session.refresh(liability)
 
     # Create initial balance snapshot
@@ -113,7 +113,8 @@ def create_liability(data: LiabilityCreate, session: Session = Depends(get_sessi
             currency=data.currency,
         )
         session.add(snapshot)
-        session.commit()
+
+    session.commit()
 
     return {
         "id": liability.id,

@@ -97,7 +97,7 @@ def create_account(data: AccountCreate, session: Session = Depends(get_session))
         tags=data.tags,
     )
     session.add(account)
-    session.commit()
+    session.flush()  # Assigns account.id without committing
     session.refresh(account)
 
     # Create initial balance snapshot
@@ -109,7 +109,8 @@ def create_account(data: AccountCreate, session: Session = Depends(get_session))
             currency=data.currency,
         )
         session.add(snapshot)
-        session.commit()
+
+    session.commit()
 
     return {
         "id": account.id,

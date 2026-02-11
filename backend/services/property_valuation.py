@@ -259,7 +259,7 @@ def _update_valuation_cache(session: Session, property_id: int, value_data: dict
         cached.rent_range_high = rent_data.get("rent_range_high")
 
     session.add(cached)
-    session.commit()
+    session.flush()  # Persist cache entry before querying history
 
     # Also record a history point
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -278,7 +278,8 @@ def _update_valuation_cache(session: Session, property_id: int, value_data: dict
             source="rentcast",
         )
         session.add(history)
-        session.commit()
+
+    session.commit()
 
 
 async def refresh_property_valuation(property_id: int, session: Session) -> Optional[Dict[str, Any]]:
