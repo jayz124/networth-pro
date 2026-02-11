@@ -8,6 +8,22 @@ import { LiabilityCard } from "@/components/liabilities/liability-card"
 import { LiabilityForm } from "@/components/liabilities/liability-form"
 import { Liability, fetchLiabilities } from "@/lib/api"
 
+/**
+ * Normalize liability category strings to canonical categories.
+ * Handles both new normalized categories ("credit_card") and legacy
+ * descriptive categories ("Credit Card").
+ */
+function normalizeLiabilityCategory(category: string | null | undefined): string {
+    if (!category) return 'other'
+    const c = category.toLowerCase().trim()
+    if (c === 'credit_card' || c === 'credit card') return 'credit_card'
+    if (c === 'auto_loan' || c === 'auto loan' || c === 'car loan') return 'auto_loan'
+    if (c === 'student_loan' || c === 'student loan') return 'student_loan'
+    if (c === 'personal_loan' || c === 'personal loan') return 'personal_loan'
+    if (c === 'mortgage') return 'mortgage'
+    return 'other'
+}
+
 export default function LiabilitiesPage() {
     const [liabilities, setLiabilities] = React.useState<Liability[]>([])
     const [showAddDialog, setShowAddDialog] = React.useState(false)
@@ -24,18 +40,20 @@ export default function LiabilitiesPage() {
         loadLiabilities()
     }, [])
 
-    // Calculate summary metrics by category
+    // Calculate summary metrics by normalized category
     const metrics = React.useMemo(() => {
         const totalDebt = liabilities.reduce((sum, l) => sum + l.current_balance, 0)
-        const creditCardDebt = liabilities
-            .filter(l => l.category?.toLowerCase() === 'credit_card')
-            .reduce((sum, l) => sum + l.current_balance, 0)
-        const loansDebt = liabilities
-            .filter(l => ['auto_loan', 'student_loan', 'personal_loan'].includes(l.category?.toLowerCase() || ''))
-            .reduce((sum, l) => sum + l.current_balance, 0)
-        const otherDebt = liabilities
-            .filter(l => !['credit_card', 'auto_loan', 'student_loan', 'personal_loan'].includes(l.category?.toLowerCase() || ''))
-            .reduce((sum, l) => sum + l.current_balance, 0)
+
+        // Group balances by normalized category
+        const byCategory: Record<string, number> = {}
+        for (const l of liabilities) {
+            const norm = normalizeLiabilityCategory(l.category)
+            byCategory[norm] = (byCategory[norm] || 0) + l.current_balance
+        }
+
+        const creditCardDebt = byCategory['credit_card'] || 0
+        const loansDebt = (byCategory['auto_loan'] || 0) + (byCategory['student_loan'] || 0) + (byCategory['personal_loan'] || 0)
+        const otherDebt = (byCategory['other'] || 0) + (byCategory['mortgage'] || 0)
 
         return {
             totalDebt,

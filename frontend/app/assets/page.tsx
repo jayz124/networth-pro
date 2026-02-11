@@ -8,6 +8,22 @@ import { AccountCard } from "@/components/assets/account-card"
 import { AccountForm } from "@/components/assets/account-form"
 import { Account, fetchAccounts } from "@/lib/api"
 
+/**
+ * Normalize account type strings to canonical categories.
+ * Handles both new normalized types ("checking") and legacy
+ * descriptive types ("Bank (Cash)").
+ */
+function normalizeAccountType(type: string): string {
+    const t = type.toLowerCase().trim()
+    if (t === 'checking' || t.includes('checking')) return 'checking'
+    if (t === 'savings' || t.includes('savings')) return 'savings'
+    if (t === 'investment' || t.includes('brokerage') || t.includes('equities')) return 'investment'
+    if (t === 'cash' || t === 'bank (cash)') return 'cash'
+    if (t.includes('retirement') || t.includes('401k') || t.includes('ira')) return 'retirement'
+    if (t.includes('real estate')) return 'real_estate'
+    return t
+}
+
 export default function AssetsPage() {
     const [accounts, setAccounts] = React.useState<Account[]>([])
     const [showAddDialog, setShowAddDialog] = React.useState(false)
@@ -24,18 +40,21 @@ export default function AssetsPage() {
         loadAccounts()
     }, [])
 
-    // Calculate summary metrics by type
+    // Calculate summary metrics by normalized type
     const metrics = React.useMemo(() => {
         const totalBalance = accounts.reduce((sum, a) => sum + a.current_balance, 0)
-        const checkingBalance = accounts
-            .filter(a => a.type.toLowerCase() === 'checking')
-            .reduce((sum, a) => sum + a.current_balance, 0)
-        const savingsBalance = accounts
-            .filter(a => a.type.toLowerCase() === 'savings')
-            .reduce((sum, a) => sum + a.current_balance, 0)
-        const investmentBalance = accounts
-            .filter(a => a.type.toLowerCase() === 'investment')
-            .reduce((sum, a) => sum + a.current_balance, 0)
+
+        // Group balances by normalized type
+        const byType: Record<string, number> = {}
+        for (const a of accounts) {
+            const norm = normalizeAccountType(a.type)
+            byType[norm] = (byType[norm] || 0) + a.current_balance
+        }
+
+        // "Cash" and "Checking" both represent liquid checking-type accounts
+        const checkingBalance = (byType['checking'] || 0) + (byType['cash'] || 0)
+        const savingsBalance = byType['savings'] || 0
+        const investmentBalance = (byType['investment'] || 0) + (byType['retirement'] || 0)
 
         return {
             totalBalance,

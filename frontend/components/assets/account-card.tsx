@@ -31,31 +31,42 @@ type AccountCardProps = {
     onUpdate: () => void
 }
 
+function normalizeAccountType(type: string): string {
+    const t = type.toLowerCase().trim()
+    if (t === 'checking' || t.includes('checking')) return 'checking'
+    if (t === 'savings' || t.includes('savings')) return 'savings'
+    if (t === 'investment' || t.includes('brokerage') || t.includes('equities')) return 'investment'
+    if (t === 'cash' || t === 'bank (cash)') return 'cash'
+    if (t.includes('retirement') || t.includes('401k') || t.includes('ira')) return 'retirement'
+    if (t.includes('real estate')) return 'real_estate'
+    return t
+}
+
 const getAccountIcon = (type: string) => {
-    switch (type.toLowerCase()) {
+    switch (normalizeAccountType(type)) {
         case 'checking':
+        case 'cash':
             return <Building className="h-5 w-5 text-info" />
         case 'savings':
             return <PiggyBank className="h-5 w-5 text-success" />
         case 'investment':
+        case 'retirement':
             return <TrendingUp className="h-5 w-5 text-accent" />
-        case 'cash':
-            return <Banknote className="h-5 w-5 text-warning" />
         default:
             return <Wallet className="h-5 w-5 text-accent" />
     }
 }
 
 const getAccountColor = (type: string) => {
-    switch (type.toLowerCase()) {
+    switch (normalizeAccountType(type)) {
         case 'checking':
+        case 'cash':
             return 'bg-info/10'
         case 'savings':
             return 'bg-success/10'
         case 'investment':
+        case 'retirement':
             return 'bg-accent/10'
-        case 'cash':
-            return 'bg-warning/10'
         default:
             return 'bg-accent/10'
     }

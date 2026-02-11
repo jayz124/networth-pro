@@ -31,8 +31,19 @@ type LiabilityCardProps = {
     onUpdate: () => void
 }
 
+function normalizeLiabilityCategory(category: string | null | undefined): string {
+    if (!category) return 'other'
+    const c = category.toLowerCase().trim()
+    if (c === 'credit_card' || c === 'credit card') return 'credit_card'
+    if (c === 'auto_loan' || c === 'auto loan' || c === 'car loan') return 'auto_loan'
+    if (c === 'student_loan' || c === 'student loan') return 'student_loan'
+    if (c === 'personal_loan' || c === 'personal loan') return 'personal_loan'
+    if (c === 'mortgage') return 'mortgage'
+    return 'other'
+}
+
 const getLiabilityIcon = (category: string) => {
-    switch (category?.toLowerCase()) {
+    switch (normalizeLiabilityCategory(category)) {
         case 'credit_card':
             return <CreditCard className="h-5 w-5 text-destructive" />
         case 'auto_loan':
@@ -49,7 +60,7 @@ const getLiabilityIcon = (category: string) => {
 }
 
 const getLiabilityColor = (category: string) => {
-    switch (category?.toLowerCase()) {
+    switch (normalizeLiabilityCategory(category)) {
         case 'credit_card':
             return 'bg-destructive/10'
         case 'auto_loan':
@@ -67,7 +78,8 @@ const getLiabilityColor = (category: string) => {
 
 const formatCategory = (category: string) => {
     if (!category) return 'Other'
-    return category.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    // Handle both "credit_card" and "Credit Card" formats
+    return category.split(/[_\s]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
 }
 
 export function LiabilityCard({ liability, onUpdate }: LiabilityCardProps) {
