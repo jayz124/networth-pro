@@ -14,6 +14,7 @@ import {
     Legend,
 } from "recharts"
 import { TrendingUp, TrendingDown, Calendar, ArrowUpRight, ArrowDownRight } from "lucide-react"
+import { LoadingState } from "@/components/ui/loading-state"
 import { ForecastResponse, fetchBudgetForecast } from "@/lib/api"
 import { useSettings } from "@/lib/settings-context"
 
@@ -39,8 +40,8 @@ export function BudgetForecast() {
             <div className="space-y-4">
                 <Card>
                     <CardContent className="pt-6">
-                        <div className="h-[300px] flex items-center justify-center">
-                            <div className="animate-pulse text-muted-foreground">Loading forecast...</div>
+                        <div className="h-[300px]">
+                            <LoadingState message="Loading forecast..." />
                         </div>
                     </CardContent>
                 </Card>

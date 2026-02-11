@@ -33,6 +33,7 @@ import { CashFlowExplorer } from "@/components/retirement/cash-flow-explorer"
 import { PlanSelector } from "@/components/retirement/plan-selector"
 import { SavePlanDialog } from "@/components/retirement/save-plan-dialog"
 import { Button } from "@/components/ui/button"
+import { LoadingState } from "@/components/ui/loading-state"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { RetirementModeProvider, useRetirementMode, RetirementMode } from "@/lib/retirement-mode-context"
 import { fetchAutoPopulateData, AutoPopulateData } from "@/lib/retirement-auto-populate"
@@ -186,7 +187,7 @@ function RetirementPageContent() {
     if (!modeLoaded) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-                <div className="animate-pulse text-muted-foreground">Loading...</div>
+                <LoadingState message="Loading retirement planner..." />
             </div>
         )
     }

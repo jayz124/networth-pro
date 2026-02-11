@@ -12,6 +12,7 @@ import {
 } from "recharts"
 import { BudgetSummary } from "@/lib/api"
 import { useSettings } from "@/lib/settings-context"
+import { LoadingState } from "@/components/ui/loading-state"
 
 interface SpendingBreakdownProps {
     summary: BudgetSummary | null
@@ -29,8 +30,8 @@ export function SpendingBreakdown({ summary, isLoading }: SpendingBreakdownProps
                     <CardDescription>Where your money goes</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="h-[300px] flex items-center justify-center">
-                        <div className="animate-pulse text-muted-foreground">Loading...</div>
+                    <div className="h-[300px]">
+                        <LoadingState message="Loading spending data..." />
                     </div>
                 </CardContent>
             </Card>

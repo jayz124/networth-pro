@@ -28,7 +28,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { MoreHorizontal, Pencil, Trash2, Sparkles, RefreshCw } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Sparkles } from "lucide-react"
+import { LoadingState } from "@/components/ui/loading-state"
 import { Transaction, deleteTransaction } from "@/lib/api"
 import { useSettings } from "@/lib/settings-context"
 
@@ -78,8 +79,8 @@ export function TransactionTable({
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-48">
-                <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="h-48">
+                <LoadingState message="Loading transactions..." />
             </div>
         )
     }

@@ -10,7 +10,8 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Calendar, RefreshCw } from "lucide-react"
+import { Plus, Calendar } from "lucide-react"
+import { LoadingState } from "@/components/ui/loading-state"
 import { BudgetSummary } from "@/components/budget/budget-summary"
 import { TransactionForm } from "@/components/budget/transaction-form"
 import { TransactionTable } from "@/components/budget/transaction-table"
@@ -187,9 +188,7 @@ export default function BudgetPage() {
 
             {/* Summary Cards */}
             {isLoading ? (
-                <div className="flex items-center justify-center h-32">
-                    <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
+                <LoadingState message="Loading budget..." />
             ) : (
                 <BudgetSummary
                     totalIncome={summary?.total_income || 0}

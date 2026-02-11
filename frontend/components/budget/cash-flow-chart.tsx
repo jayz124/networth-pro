@@ -14,6 +14,7 @@ import {
 } from "recharts"
 import { CashFlowData } from "@/lib/api"
 import { useSettings } from "@/lib/settings-context"
+import { LoadingState } from "@/components/ui/loading-state"
 
 interface CashFlowChartProps {
     data: CashFlowData[]
@@ -37,8 +38,8 @@ export function CashFlowChart({ data, isLoading }: CashFlowChartProps) {
                     <CardDescription>Income vs expenses over time</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="h-[300px] flex items-center justify-center">
-                        <div className="animate-pulse text-muted-foreground">Loading...</div>
+                    <div className="h-[300px]">
+                        <LoadingState message="Loading cash flow..." />
                     </div>
                 </CardContent>
             </Card>

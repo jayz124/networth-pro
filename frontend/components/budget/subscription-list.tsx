@@ -32,6 +32,7 @@ import {
     PauseCircle,
     PlayCircle,
 } from "lucide-react"
+import { LoadingState } from "@/components/ui/loading-state"
 import {
     Subscription,
     DetectedSubscription,
@@ -211,9 +212,7 @@ export function SubscriptionList({ onRefreshTransactions }: SubscriptionListProp
 
                     {/* Subscription List */}
                     {isLoading ? (
-                        <div className="flex items-center justify-center py-8">
-                            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
+                        <LoadingState message="Loading subscriptions..." />
                     ) : subscriptions.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                             <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-50" />
