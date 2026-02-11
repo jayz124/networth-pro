@@ -9,11 +9,27 @@ from typing import Dict
 
 from core.database import get_session
 from core.queries import get_latest_account_balances, get_latest_liability_balances
-from models import Account, Liability, BalanceSnapshot, Portfolio, PortfolioHolding, Property, Mortgage, NetWorthSnapshot
+from core.fx_service import convert_to_base
+from models import Account, Liability, BalanceSnapshot, Portfolio, PortfolioHolding, Property, Mortgage, NetWorthSnapshot, AppSettings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _get_base_currency(session: Session) -> str:
+    """Get user's base currency from app settings, default USD."""
+    setting = session.exec(
+        select(AppSettings).where(AppSettings.key == "default_currency")
+    ).first()
+    return setting.value if setting and setting.value else "USD"
+
+
+def _fx(amount: float, from_ccy: str, base_ccy: str) -> float:
+    """Convert amount to base currency. No-op when currencies match."""
+    if from_ccy == base_ccy:
+        return amount
+    return convert_to_base(amount, from_ccy, base_ccy)
 
 
 @router.get("/networth")
@@ -25,6 +41,8 @@ def get_networth(session: Session = Depends(get_session)):
     - Investment portfolios (from PortfolioHolding)
     - Real estate equity (from Property - Mortgage)
     """
+    base_ccy = _get_base_currency(session)
+
     # 1. Cash Accounts (Assets)
     accounts = session.exec(select(Account)).all()
     acct_balances = get_latest_account_balances(session)
@@ -33,34 +51,41 @@ def get_networth(session: Session = Depends(get_session)):
 
     for account in accounts:
         snap = acct_balances.get(account.id)
-        balance = snap.amount if snap else 0.0
+        raw_balance = snap.amount if snap else 0.0
+        balance = _fx(raw_balance, account.currency, base_ccy)
         total_cash += balance
         asset_breakdown.append({
             "name": account.name,
             "balance": balance,
-            "currency": account.currency,
+            "currency": base_ccy,
+            "original_currency": account.currency,
             "type": "cash"
         })
 
     # 2. Investment Portfolios
     holdings = session.exec(select(PortfolioHolding)).all()
     portfolios = session.exec(select(Portfolio)).all()
-    portfolio_map = {p.id: p.name for p in portfolios}
+    portfolio_map = {p.id: p for p in portfolios}
 
-    total_investments = sum(h.current_value or 0 for h in holdings)
+    total_investments = 0.0
 
-    # Group holdings by portfolio
+    # Group holdings by portfolio, converting each holding's currency
     portfolio_values: Dict[int, float] = {}
     for h in holdings:
+        h_ccy = h.currency or "USD"
+        converted = _fx(h.current_value or 0, h_ccy, base_ccy)
+        total_investments += converted
         if h.portfolio_id not in portfolio_values:
             portfolio_values[h.portfolio_id] = 0
-        portfolio_values[h.portfolio_id] += h.current_value or 0
+        portfolio_values[h.portfolio_id] += converted
 
     for portfolio_id, value in portfolio_values.items():
+        p = portfolio_map.get(portfolio_id)
         asset_breakdown.append({
-            "name": portfolio_map.get(portfolio_id, f"Portfolio {portfolio_id}"),
+            "name": p.name if p else f"Portfolio {portfolio_id}",
             "balance": value,
-            "currency": "USD",
+            "currency": base_ccy,
+            "original_currency": p.currency if p else "USD",
             "type": "investment"
         })
 
@@ -68,25 +93,32 @@ def get_networth(session: Session = Depends(get_session)):
     properties = session.exec(select(Property)).all()
     mortgages = session.exec(select(Mortgage)).all()
 
+    # Build property currency lookup for mortgages
+    prop_currency: Dict[int, str] = {p.id: p.currency for p in properties}
+
     # Group mortgages by property for reference
     mortgage_by_property: Dict[int, float] = {}
     total_mortgage_balance = 0.0
     for m in mortgages:
         if m.is_active:
+            m_ccy = prop_currency.get(m.property_id, "USD")
+            converted = _fx(m.current_balance, m_ccy, base_ccy)
             if m.property_id not in mortgage_by_property:
                 mortgage_by_property[m.property_id] = 0
-            mortgage_by_property[m.property_id] += m.current_balance
-            total_mortgage_balance += m.current_balance
+            mortgage_by_property[m.property_id] += converted
+            total_mortgage_balance += converted
 
     total_real_estate_value = 0.0
 
     for prop in properties:
-        total_real_estate_value += prop.current_value
+        converted = _fx(prop.current_value, prop.currency, base_ccy)
+        total_real_estate_value += converted
 
         asset_breakdown.append({
             "name": prop.name,
-            "balance": prop.current_value,  # Show gross property value
-            "currency": prop.currency,
+            "balance": converted,
+            "currency": base_ccy,
+            "original_currency": prop.currency,
             "type": "real_estate"
         })
 
@@ -98,13 +130,15 @@ def get_networth(session: Session = Depends(get_session)):
     # Add mortgages to liabilities
     for m in mortgages:
         if m.is_active:
-            # Find the property name for this mortgage
             prop = next((p for p in properties if p.id == m.property_id), None)
             prop_name = prop.name if prop else f"Property {m.property_id}"
+            m_ccy = prop.currency if prop else "USD"
+            converted = _fx(m.current_balance, m_ccy, base_ccy)
             liab_breakdown.append({
                 "name": f"Mortgage - {prop_name}",
-                "balance": m.current_balance,
-                "currency": prop.currency if prop else "USD",
+                "balance": converted,
+                "currency": base_ccy,
+                "original_currency": m_ccy,
                 "type": "mortgage"
             })
     total_liabilities += total_mortgage_balance
@@ -113,12 +147,14 @@ def get_networth(session: Session = Depends(get_session)):
     liab_balances = get_latest_liability_balances(session)
     for liab in liabilities:
         snap = liab_balances.get(liab.id)
-        balance = snap.amount if snap else 0.0
+        raw_balance = snap.amount if snap else 0.0
+        balance = _fx(raw_balance, liab.currency, base_ccy)
         total_liabilities += balance
         liab_breakdown.append({
             "name": liab.name,
             "balance": balance,
-            "currency": liab.currency,
+            "currency": base_ccy,
+            "original_currency": liab.currency,
             "type": "liability"
         })
 
@@ -137,7 +173,7 @@ def get_networth(session: Session = Depends(get_session)):
         "net_worth": net_worth,
         "total_assets": total_assets,
         "total_liabilities": total_liabilities,
-        "currency": "USD",
+        "currency": base_ccy,
         "breakdown": {
             "cash_accounts": total_cash,
             "investments": total_investments,
@@ -203,6 +239,8 @@ def get_networth_breakdown(session: Session = Depends(get_session)):
     """
     Get detailed breakdown of net worth by category.
     """
+    base_ccy = _get_base_currency(session)
+
     # Cash
     accounts = session.exec(select(Account)).all()
     acct_balances = get_latest_account_balances(session)
@@ -211,7 +249,8 @@ def get_networth_breakdown(session: Session = Depends(get_session)):
 
     for account in accounts:
         snap = acct_balances.get(account.id)
-        balance = snap.amount if snap else 0.0
+        raw_balance = snap.amount if snap else 0.0
+        balance = _fx(raw_balance, account.currency, base_ccy)
         total_cash += balance
         cash_items.append({
             "id": account.id,
@@ -231,12 +270,14 @@ def get_networth_breakdown(session: Session = Depends(get_session)):
 
     portfolio_values: Dict[int, Dict] = {}
     for h in holdings:
+        h_ccy = h.currency or "USD"
+        converted = _fx(h.current_value or 0, h_ccy, base_ccy)
         if h.portfolio_id not in portfolio_values:
             portfolio_values[h.portfolio_id] = {"value": 0, "holdings": []}
-        portfolio_values[h.portfolio_id]["value"] += h.current_value or 0
+        portfolio_values[h.portfolio_id]["value"] += converted
         portfolio_values[h.portfolio_id]["holdings"].append({
             "ticker": h.ticker,
-            "value": h.current_value or 0,
+            "value": converted,
             "quantity": h.quantity,
         })
 
@@ -254,28 +295,33 @@ def get_networth_breakdown(session: Session = Depends(get_session)):
     properties = session.exec(select(Property)).all()
     mortgages = session.exec(select(Mortgage)).all()
 
+    prop_currency: Dict[int, str] = {p.id: p.currency for p in properties}
+
     mortgage_by_property: Dict[int, float] = {}
     for m in mortgages:
         if m.is_active:
+            m_ccy = prop_currency.get(m.property_id, "USD")
+            converted = _fx(m.current_balance, m_ccy, base_ccy)
             if m.property_id not in mortgage_by_property:
                 mortgage_by_property[m.property_id] = 0
-            mortgage_by_property[m.property_id] += m.current_balance
+            mortgage_by_property[m.property_id] += converted
 
     real_estate_items = []
     total_real_estate = 0.0
 
     total_mortgage_balance = 0.0
     for prop in properties:
+        converted_value = _fx(prop.current_value, prop.currency, base_ccy)
         mortgage_balance = mortgage_by_property.get(prop.id, 0)
         total_mortgage_balance += mortgage_balance
-        total_real_estate += prop.current_value  # Use gross value
+        total_real_estate += converted_value
         real_estate_items.append({
             "id": prop.id,
             "name": prop.name,
             "property_type": prop.property_type,
-            "current_value": prop.current_value,
+            "current_value": converted_value,
             "mortgage_balance": mortgage_balance,
-            "equity": prop.current_value - mortgage_balance,
+            "equity": converted_value - mortgage_balance,
         })
 
     # Liabilities (including mortgages)
@@ -288,10 +334,12 @@ def get_networth_breakdown(session: Session = Depends(get_session)):
         if m.is_active:
             prop = next((p for p in properties if p.id == m.property_id), None)
             prop_name = prop.name if prop else f"Property {m.property_id}"
+            m_ccy = prop.currency if prop else "USD"
+            converted = _fx(m.current_balance, m_ccy, base_ccy)
             liability_items.append({
                 "id": f"mortgage_{m.id}",
                 "name": f"Mortgage - {prop_name}",
-                "balance": m.current_balance,
+                "balance": converted,
                 "category": "mortgage",
             })
 
@@ -299,7 +347,8 @@ def get_networth_breakdown(session: Session = Depends(get_session)):
     liab_balances = get_latest_liability_balances(session)
     for liab in liabilities:
         snap = liab_balances.get(liab.id)
-        balance = snap.amount if snap else 0.0
+        raw_balance = snap.amount if snap else 0.0
+        balance = _fx(raw_balance, liab.currency, base_ccy)
         total_liabilities += balance
         liability_items.append({
             "id": liab.id,
@@ -315,6 +364,7 @@ def get_networth_breakdown(session: Session = Depends(get_session)):
         "net_worth": net_worth,
         "total_assets": total_assets,
         "total_liabilities": total_liabilities,
+        "currency": base_ccy,
         "categories": {
             "cash": {
                 "total": total_cash,

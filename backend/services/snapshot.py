@@ -11,37 +11,74 @@ from sqlmodel import Session, select
 
 from models import (
     Account, Liability, BalanceSnapshot, PortfolioHolding,
-    Property, Mortgage, NetWorthSnapshot,
+    Property, Mortgage, NetWorthSnapshot, AppSettings,
 )
 from core.queries import get_latest_account_balances, get_latest_liability_balances
+from core.fx_service import convert_to_base
 
 logger = logging.getLogger(__name__)
+
+
+def _get_base_currency(session: Session) -> str:
+    """Get user's base currency from app settings, default USD."""
+    setting = session.exec(
+        select(AppSettings).where(AppSettings.key == "default_currency")
+    ).first()
+    return setting.value if setting and setting.value else "USD"
+
+
+def _fx(amount: float, from_ccy: str, base_ccy: str) -> float:
+    """Convert amount to base currency."""
+    if from_ccy == base_ccy:
+        return amount
+    return convert_to_base(amount, from_ccy, base_ccy)
 
 
 def compute_net_worth_components(session: Session) -> dict:
     """Compute current totals for all net worth components.
 
+    All amounts are converted to the user's base currency.
     Returns a dict with keys matching NetWorthSnapshot fields.
     """
+    base_ccy = _get_base_currency(session)
+
     # Cash accounts (batch query)
+    accounts = session.exec(select(Account)).all()
+    acct_ccy = {a.id: a.currency for a in accounts}
     acct_balances = get_latest_account_balances(session)
-    total_cash = sum(s.amount for s in acct_balances.values())
+    total_cash = sum(
+        _fx(s.amount, acct_ccy.get(aid, "USD"), base_ccy)
+        for aid, s in acct_balances.items()
+    )
 
     # Investments
     holdings = session.exec(select(PortfolioHolding)).all()
-    total_investments = sum(h.current_value or 0 for h in holdings)
+    total_investments = sum(
+        _fx(h.current_value or 0, h.currency or "USD", base_ccy) for h in holdings
+    )
 
     # Real estate
     properties = session.exec(select(Property)).all()
-    total_real_estate = sum(p.current_value for p in properties)
+    total_real_estate = sum(
+        _fx(p.current_value, p.currency, base_ccy) for p in properties
+    )
 
-    # Mortgages
+    # Mortgages (use parent property's currency)
+    prop_ccy = {p.id: p.currency for p in properties}
     mortgages = session.exec(select(Mortgage)).all()
-    total_mortgages = sum(m.current_balance for m in mortgages if m.is_active)
+    total_mortgages = sum(
+        _fx(m.current_balance, prop_ccy.get(m.property_id, "USD"), base_ccy)
+        for m in mortgages if m.is_active
+    )
 
     # Other liabilities (batch query)
+    liabilities = session.exec(select(Liability)).all()
+    liab_ccy = {l.id: l.currency for l in liabilities}
     liab_balances = get_latest_liability_balances(session)
-    total_liabilities = sum(s.amount for s in liab_balances.values())
+    total_liabilities = sum(
+        _fx(s.amount, liab_ccy.get(lid, "USD"), base_ccy)
+        for lid, s in liab_balances.items()
+    )
 
     total_assets = total_cash + total_investments + total_real_estate
     total_liab = total_liabilities + total_mortgages
