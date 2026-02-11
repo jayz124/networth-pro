@@ -74,25 +74,28 @@ export async function POST(request: NextRequest) {
 
         const now = new Date();
 
+        const { current_balance, ...accountData } = data;
+
         const account = await prisma.account.create({
             data: {
-                name: data.name,
-                institution: data.institution ?? null,
-                type: data.type,
-                currency: data.currency,
-                tags: data.tags ?? null,
-                current_balance: data.current_balance,
+                name: accountData.name,
+                institution: accountData.institution ?? null,
+                type: accountData.type,
+                currency: accountData.currency,
+                tags: accountData.tags ?? null,
+                created_at: now,
+                updated_at: now,
             },
         });
 
         // Create initial balance snapshot if non-zero
-        if (data.current_balance !== 0) {
+        if (current_balance !== 0) {
             await prisma.balanceSnapshot.create({
                 data: {
                     date: now,
                     account_id: account.id,
-                    amount: data.current_balance,
-                    currency: data.currency,
+                    amount: current_balance,
+                    currency: accountData.currency,
                 },
             });
         }
@@ -104,8 +107,8 @@ export async function POST(request: NextRequest) {
             type: account.type,
             currency: account.currency,
             tags: account.tags,
-            current_balance: data.current_balance,
-            last_updated: data.current_balance !== 0 ? now.toISOString() : null,
+            current_balance: current_balance,
+            last_updated: current_balance !== 0 ? now.toISOString() : null,
             created_at: account.created_at.toISOString(),
             updated_at: account.updated_at.toISOString(),
         });

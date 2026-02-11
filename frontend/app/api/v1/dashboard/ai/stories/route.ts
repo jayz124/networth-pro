@@ -22,8 +22,12 @@ export async function GET(request: NextRequest) {
     // Gather data
     const [accounts, liabilities, holdings, properties, mortgages, transactions] = await Promise.all(
       [
-        prisma.account.findMany(),
-        prisma.liability.findMany(),
+        prisma.account.findMany({
+          include: { balance_snapshots: { orderBy: { date: 'desc' }, take: 1 } },
+        }),
+        prisma.liability.findMany({
+          include: { balance_snapshots: { orderBy: { date: 'desc' }, take: 1 } },
+        }),
         prisma.portfolioHolding.findMany(),
         prisma.property.findMany(),
         prisma.mortgage.findMany(),
@@ -38,11 +42,11 @@ export async function GET(request: NextRequest) {
     );
 
     // Build net worth data
-    const totalCash = accounts.reduce((s, a) => s + (a.current_balance || 0), 0);
+    const totalCash = accounts.reduce((s, a) => s + (a.balance_snapshots[0]?.amount ?? 0), 0);
     const totalInvestments = holdings.reduce((s, h) => s + (h.current_value || 0), 0);
     const totalRealEstate = properties.reduce((s, p) => s + p.current_value, 0);
     const totalMortgages = mortgages.reduce((s, m) => s + m.current_balance, 0);
-    const totalLiabilities = liabilities.reduce((s, l) => s + (l.current_balance || 0), 0) + totalMortgages;
+    const totalLiabilities = liabilities.reduce((s, l) => s + (l.balance_snapshots[0]?.amount ?? 0), 0) + totalMortgages;
     const totalAssets = totalCash + totalInvestments + totalRealEstate;
     const netWorth = totalAssets - totalLiabilities;
 

@@ -31,27 +31,41 @@ export async function POST(request: NextRequest) {
     await prisma.$transaction(async (tx) => {
       // Accounts
       if (Array.isArray(data.accounts)) {
+        const now = new Date();
         for (const item of data.accounts) {
           const rec = item as Record<string, unknown>;
           try {
-            await tx.account.upsert({
+            const importedBalance = (rec.current_balance as number) || 0;
+            const account = await tx.account.upsert({
               where: { name: rec.name as string },
               create: {
                 name: rec.name as string,
                 institution: (rec.institution as string) || null,
                 type: (rec.type as string) || 'checking',
                 currency: (rec.currency as string) || 'USD',
-                current_balance: (rec.current_balance as number) || 0,
                 tags: (rec.tags as string) || null,
+                created_at: now,
+                updated_at: now,
               },
               update: {
                 institution: (rec.institution as string) || null,
                 type: (rec.type as string) || 'checking',
                 currency: (rec.currency as string) || 'USD',
-                current_balance: (rec.current_balance as number) || 0,
                 tags: (rec.tags as string) || null,
+                updated_at: now,
               },
             });
+            // Create balance snapshot if there's a balance to import
+            if (importedBalance !== 0) {
+              await tx.balanceSnapshot.create({
+                data: {
+                  date: now,
+                  account_id: account.id,
+                  amount: importedBalance,
+                  currency: (rec.currency as string) || 'USD',
+                },
+              });
+            }
           } catch { /* skip duplicates */ }
         }
         imported.accounts = data.accounts.length;
@@ -59,25 +73,39 @@ export async function POST(request: NextRequest) {
 
       // Liabilities
       if (Array.isArray(data.liabilities)) {
+        const liabNow = new Date();
         for (const item of data.liabilities) {
           const rec = item as Record<string, unknown>;
           try {
-            await tx.liability.upsert({
+            const importedBalance = (rec.current_balance as number) || 0;
+            const liability = await tx.liability.upsert({
               where: { name: rec.name as string },
               create: {
                 name: rec.name as string,
                 category: (rec.category as string) || null,
                 currency: (rec.currency as string) || 'USD',
-                current_balance: (rec.current_balance as number) || 0,
                 tags: (rec.tags as string) || null,
+                created_at: liabNow,
+                updated_at: liabNow,
               },
               update: {
                 category: (rec.category as string) || null,
                 currency: (rec.currency as string) || 'USD',
-                current_balance: (rec.current_balance as number) || 0,
                 tags: (rec.tags as string) || null,
+                updated_at: liabNow,
               },
             });
+            // Create balance snapshot if there's a balance to import
+            if (importedBalance !== 0) {
+              await tx.balanceSnapshot.create({
+                data: {
+                  date: liabNow,
+                  liability_id: liability.id,
+                  amount: importedBalance,
+                  currency: (rec.currency as string) || 'USD',
+                },
+              });
+            }
           } catch { /* skip */ }
         }
         imported.liabilities = data.liabilities.length;

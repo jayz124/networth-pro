@@ -123,7 +123,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         }
 
         // Build update payload, only including fields that were provided
-        const updateData: Record<string, unknown> = {};
+        const updateData: Record<string, unknown> = {
+            updated_at: new Date(),
+        };
         if (data.name !== undefined) updateData.name = data.name;
         if (data.institution !== undefined) updateData.institution = data.institution;
         if (data.type !== undefined) updateData.type = data.type;

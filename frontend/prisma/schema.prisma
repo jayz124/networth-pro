@@ -7,39 +7,36 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-
 }
 
 model Account {
-  id              Int               @id @default(autoincrement())
-  name            String            @unique
-  institution     String?
-  type            String            // checking, savings, investment, cash
-  currency        String            @default("USD")
-  tags            String?
-  current_balance Float?            @default(0) // Helper field, real source of truth is snapshots/transactions
-  created_at      DateTime          @default(now())
-  updated_at      DateTime          @updatedAt
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  institution String?
+  type       String
+  currency   String   @default("USD")
+  tags       String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   balance_snapshots BalanceSnapshot[]
   transactions      Transaction[]
 
-  @@index([name])
+  @@map("account")
 }
 
 model Liability {
-  id              Int               @id @default(autoincrement())
-  name            String            @unique
-  category        String?           // credit_card, student_loan, auto_loan, personal_loan, other
-  currency        String            @default("USD")
-  tags            String?
-  current_balance Float?            @default(0)
-  created_at      DateTime          @default(now())
-  updated_at      DateTime          @updatedAt
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  category   String?
+  currency   String   @default("USD")
+  tags       String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   balance_snapshots BalanceSnapshot[]
 
-  @@index([name])
+  @@map("liability")
 }
 
 model Portfolio {
@@ -53,7 +50,7 @@ model Portfolio {
 
   holdings PortfolioHolding[]
 
-  @@index([name])
+  @@map("portfolio")
 }
 
 model PortfolioHolding {
@@ -64,24 +61,23 @@ model PortfolioHolding {
   asset_type     String
   quantity       Float
   purchase_price Float?
-  purchase_date  String?   // ISO format: YYYY-MM-DD
+  purchase_date  String?
   currency       String    @default("USD")
   current_price  Float?
-  current_value  Float?    // Calculated (qty * price)
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
+  current_value  Float?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@map("portfolioholding")
 }
 
 model BalanceSnapshot {
-  id           Int      @id @default(autoincrement())
-  date         DateTime 
-  
+  id           Int        @id @default(autoincrement())
+  date         DateTime
   account_id   Int?
-  account      Account? @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  
+  account      Account?   @relation(fields: [account_id], references: [id], onDelete: Cascade)
   liability_id Int?
   liability    Liability? @relation(fields: [liability_id], references: [id], onDelete: Cascade)
-
   amount       Float
   currency     String
   created_at   DateTime @default(now())
@@ -90,6 +86,7 @@ model BalanceSnapshot {
   @@index([date])
   @@index([account_id, date])
   @@index([liability_id, date])
+  @@map("balancesnapshot")
 }
 
 model SecurityInfo {
@@ -100,9 +97,11 @@ model SecurityInfo {
   exchange     String?
   currency     String   @default("USD")
   sector       String?
-  last_updated DateTime @default(now())
+  last_updated DateTime
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
 
-  @@index([ticker])
+  @@map("securityinfo")
 }
 
 model PriceCache {
@@ -111,28 +110,33 @@ model PriceCache {
   current_price  Float
   previous_close Float?
   change_percent Float?
-  fetched_at     DateTime @default(now())
+  fetched_at     DateTime
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
   @@index([ticker])
+  @@map("pricecache")
 }
 
 model Property {
   id                   Int      @id @default(autoincrement())
   name                 String
   address              String
-  property_type        String   // residential, commercial, rental, land
+  property_type        String
   purchase_price       Float
-  purchase_date        String?  // ISO format: YYYY-MM-DD
+  purchase_date        String?
   current_value        Float
   currency             String   @default("USD")
   provider_property_id String?
-  valuation_provider   String?  // "rentcast" or null
+  valuation_provider   String?
   created_at           DateTime @default(now())
   updated_at           DateTime @updatedAt
 
-  mortgages            Mortgage[]
-  valuations           PropertyValuationCache[]
-  value_history        PropertyValueHistory[]
+  mortgages     Mortgage[]
+  valuations    PropertyValuationCache[]
+  value_history PropertyValueHistory[]
+
+  @@map("property")
 }
 
 model PropertyValuationCache {
@@ -140,7 +144,8 @@ model PropertyValuationCache {
   property_id            Int
   property               Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
   provider               String   @default("rentcast")
-  estimated_value        Float?
+  provider_property_id   String?
+  estimated_value        Float
   estimated_rent_monthly Float?
   confidence             String?
   value_range_low        Float?
@@ -152,24 +157,28 @@ model PropertyValuationCache {
   square_footage         Int?
   year_built             Int?
   currency               String   @default("USD")
-  fetched_at             DateTime @default(now())
+  fetched_at             DateTime
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
 
   @@index([property_id])
+  @@map("propertyvaluationcache")
 }
 
 model PropertyValueHistory {
   id              Int      @id @default(autoincrement())
   property_id     Int
   property        Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
-  date            String   // ISO format: YYYY-MM-DD
+  date            DateTime
   estimated_value Float
   source          String   @default("rentcast")
   currency        String   @default("USD")
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
-  @@unique([property_id, date, source])
+  @@index([property_id])
   @@index([date])
+  @@map("propertyvaluehistory")
 }
 
 model Mortgage {
@@ -185,19 +194,21 @@ model Mortgage {
   is_active          Boolean  @default(true)
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
+
+  @@map("mortgage")
 }
 
 model RetirementPlan {
   id          Int      @id @default(autoincrement())
   name        String   @unique
   description String?
-  mode        String   // "pro" or "essential"
+  mode        String
   config_json String
   is_active   Boolean  @default(false)
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
-  @@index([name])
+  @@map("retirementplan")
 }
 
 model BudgetCategory {
@@ -213,7 +224,7 @@ model BudgetCategory {
   transactions  Transaction[]
   subscriptions Subscription[]
 
-  @@index([name])
+  @@map("budgetcategory")
 }
 
 model Transaction {
@@ -226,32 +237,35 @@ model Transaction {
   account_id           Int?
   account              Account?        @relation(fields: [account_id], references: [id], onDelete: SetNull)
   is_recurring         Boolean         @default(false)
-  recurrence_frequency String?         // daily, weekly, bi-weekly, monthly, yearly
   merchant             String?
   notes                String?
   ai_categorized       Boolean         @default(false)
-  created_at           DateTime        @default(now())
-  updated_at           DateTime        @updatedAt
+  recurrence_frequency String?
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
 
   @@index([date])
+  @@map("transaction")
 }
 
 model Subscription {
   id                Int             @id @default(autoincrement())
   name              String
   amount            Float
-  frequency         String          // monthly, yearly
+  frequency         String
   category_id       Int?
   category          BudgetCategory? @relation(fields: [category_id], references: [id], onDelete: SetNull)
   next_billing_date DateTime?
   is_active         Boolean         @default(true)
-  created_at        DateTime        @default(now())
-  updated_at        DateTime        @updatedAt
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@map("subscription")
 }
 
 model NetWorthSnapshot {
   id                Int      @id @default(autoincrement())
-  date              String   @unique // YYYY-MM-DD
+  date              String   @unique
   total_cash        Float    @default(0.0)
   total_investments Float    @default(0.0)
   total_real_estate Float    @default(0.0)
@@ -260,7 +274,7 @@ model NetWorthSnapshot {
   net_worth         Float    @default(0.0)
   created_at        DateTime @default(now())
 
-  @@index([date])
+  @@map("networthsnapshot")
 }
 
 model PlaidItem {
@@ -271,16 +285,16 @@ model PlaidItem {
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
-  @@index([item_id])
+  @@map("plaiditem")
 }
 
 model AppSettings {
-  id        Int      @id @default(autoincrement())
-  key       String   @unique
-  value     String?
-  is_secret Boolean  @default(false)
+  id         Int      @id @default(autoincrement())
+  key        String   @unique
+  value      String?
+  is_secret  Boolean  @default(false)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  @@index([key])
+  @@map("appsettings")
 }

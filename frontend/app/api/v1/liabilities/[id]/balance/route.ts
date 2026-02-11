@@ -44,7 +44,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         const now = new Date();
 
-        // Create balance snapshot and update liability in a transaction
+        // Create balance snapshot and update liability's updated_at in a transaction
         const [snapshot] = await prisma.$transaction([
             prisma.balanceSnapshot.create({
                 data: {
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             }),
             prisma.liability.update({
                 where: { id: liabilityId },
-                data: { current_balance: data.amount },
+                data: { updated_at: now },
             }),
         ]);
 

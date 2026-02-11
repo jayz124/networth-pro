@@ -29,7 +29,7 @@ export async function getNetWorth(): Promise<NetWorth> {
     for (const account of accounts) {
         // specific logic: if snapshot exists use it, else use helper field or 0
         const snapshot = account.balance_snapshots[0];
-        const rawBalance = snapshot ? snapshot.amount : (account.current_balance || 0);
+        const rawBalance = snapshot ? snapshot.amount : 0;
         const balance = await convertCurrency(rawBalance, account.currency, baseCcy);
 
         totalCash += balance;
@@ -118,7 +118,7 @@ export async function getNetWorth(): Promise<NetWorth> {
     // Other Liabilities
     for (const liab of liabilities) {
         const snapshot = liab.balance_snapshots[0];
-        const rawBalance = snapshot ? snapshot.amount : (liab.current_balance || 0);
+        const rawBalance = snapshot ? snapshot.amount : 0;
         const balance = await convertCurrency(rawBalance, liab.currency, baseCcy);
         totalLiabilities += balance;
 
@@ -218,7 +218,7 @@ export async function getNetWorthBreakdown() {
     const cashItems = [];
 
     for (const account of accounts) {
-        const balance = await convertCurrency(account.balance_snapshots[0]?.amount ?? account.current_balance ?? 0, account.currency, baseCcy);
+        const balance = await convertCurrency(account.balance_snapshots[0]?.amount ?? 0, account.currency, baseCcy);
         totalCash += balance;
         cashItems.push({
             id: account.id,
@@ -300,7 +300,7 @@ export async function getNetWorthBreakdown() {
 
     // Add other liabilities
     for (const l of liabilities) {
-        const balance = await convertCurrency(l.balance_snapshots[0]?.amount ?? l.current_balance ?? 0, l.currency, baseCcy);
+        const balance = await convertCurrency(l.balance_snapshots[0]?.amount ?? 0, l.currency, baseCcy);
         totalLiabilities += balance;
         liabilityItems.push({
             id: l.id,

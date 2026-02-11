@@ -73,24 +73,27 @@ export async function POST(request: NextRequest) {
 
         const now = new Date();
 
+        const { current_balance, ...liabilityData } = data;
+
         const liability = await prisma.liability.create({
             data: {
-                name: data.name,
-                category: data.category ?? null,
-                currency: data.currency,
-                tags: data.tags ?? null,
-                current_balance: data.current_balance,
+                name: liabilityData.name,
+                category: liabilityData.category ?? null,
+                currency: liabilityData.currency,
+                tags: liabilityData.tags ?? null,
+                created_at: now,
+                updated_at: now,
             },
         });
 
         // Create initial balance snapshot if non-zero
-        if (data.current_balance !== 0) {
+        if (current_balance !== 0) {
             await prisma.balanceSnapshot.create({
                 data: {
                     date: now,
                     liability_id: liability.id,
-                    amount: data.current_balance,
-                    currency: data.currency,
+                    amount: current_balance,
+                    currency: liabilityData.currency,
                 },
             });
         }
@@ -101,8 +104,8 @@ export async function POST(request: NextRequest) {
             category: liability.category,
             currency: liability.currency,
             tags: liability.tags,
-            current_balance: data.current_balance,
-            last_updated: data.current_balance !== 0 ? now.toISOString() : null,
+            current_balance: current_balance,
+            last_updated: current_balance !== 0 ? now.toISOString() : null,
             created_at: liability.created_at.toISOString(),
             updated_at: liability.updated_at.toISOString(),
         });

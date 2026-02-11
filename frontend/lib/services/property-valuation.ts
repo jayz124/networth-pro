@@ -324,7 +324,7 @@ async function updateValuationCache(
 
     const cacheData = {
         provider: 'rentcast',
-        estimated_value: valueData.estimated_value,
+        estimated_value: valueData.estimated_value ?? 0,
         value_range_low: valueData.value_range_low,
         value_range_high: valueData.value_range_high,
         bedrooms: valueData.bedrooms,
@@ -356,15 +356,14 @@ async function updateValuationCache(
     }
 
     // Also record a history point
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
     if (valueData.estimated_value) {
-        const existingHistory = await prisma.propertyValueHistory.findUnique({
+        const existingHistory = await prisma.propertyValueHistory.findFirst({
             where: {
-                property_id_date_source: {
-                    property_id: propertyId,
-                    date: today,
-                    source: 'rentcast',
-                },
+                property_id: propertyId,
+                date: todayStart,
+                source: 'rentcast',
             },
         });
 
@@ -372,7 +371,7 @@ async function updateValuationCache(
             await prisma.propertyValueHistory.create({
                 data: {
                     property_id: propertyId,
-                    date: today,
+                    date: todayStart,
                     estimated_value: valueData.estimated_value,
                     source: 'rentcast',
                 },
@@ -461,7 +460,7 @@ export async function getValueHistory(
     });
 
     return records.map((r) => ({
-        date: r.date,
+        date: r.date.toISOString().split('T')[0],
         estimated_value: r.estimated_value,
         source: r.source,
     }));
