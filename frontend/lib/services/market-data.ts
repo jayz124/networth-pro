@@ -50,11 +50,15 @@ function determineAssetType(info: Record<string, unknown>): string {
     return 'stock';
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getYahooFinance(): Promise<any> {
+    return (await import('yahoo-finance2')).default;
+}
+
 export async function searchSecurities(query: string, limit = 10): Promise<SearchResult[]> {
     if (!query || query.length < 1) return [];
 
-    // Lazy-import yahoo-finance2 (it's heavy)
-    const yahooFinance = (await import('yahoo-finance2')).default;
+    const yahooFinance = await getYahooFinance();
     const results: SearchResult[] = [];
 
     // Try exact ticker match first
@@ -64,7 +68,7 @@ export async function searchSecurities(query: string, limit = 10): Promise<Searc
             results.push({
                 ticker: quote.symbol,
                 name: quote.shortName || quote.longName || query.toUpperCase(),
-                asset_type: determineAssetType(quote as unknown as Record<string, unknown>),
+                asset_type: determineAssetType(quote as Record<string, unknown>),
                 exchange: quote.exchange,
                 currency: quote.currency || 'USD',
                 sector: undefined,
@@ -79,15 +83,14 @@ export async function searchSecurities(query: string, limit = 10): Promise<Searc
     try {
         const searchResults = await yahooFinance.search(query, { quotesCount: limit });
         for (const item of searchResults.quotes ?? []) {
-            const sym = (item as Record<string, unknown>).symbol as string | undefined;
+            const sym = item.symbol as string | undefined;
             if (sym && !results.find((r) => r.ticker === sym)) {
                 results.push({
                     ticker: sym,
-                    name: ((item as Record<string, unknown>).shortname as string) ||
-                          ((item as Record<string, unknown>).longname as string) || sym,
+                    name: item.shortname || item.longname || sym,
                     asset_type: determineAssetType(item as Record<string, unknown>),
-                    exchange: (item as Record<string, unknown>).exchange as string | undefined,
-                    currency: ((item as Record<string, unknown>).currency as string) || 'USD',
+                    exchange: item.exchange as string | undefined,
+                    currency: (item.currency as string) || 'USD',
                     sector: undefined,
                     current_price: null,
                 });
@@ -140,7 +143,7 @@ export async function getQuote(ticker: string): Promise<QuoteResult | null> {
 
     // Fetch fresh data
     try {
-        const yahooFinance = (await import('yahoo-finance2')).default;
+        const yahooFinance = await getYahooFinance();
         const quote = await yahooFinance.quote(ticker);
 
         if (!quote || !quote.symbol) return null;
@@ -182,7 +185,7 @@ export async function getQuote(ticker: string): Promise<QuoteResult | null> {
                 data: {
                     ticker,
                     name: quote.shortName || quote.longName || ticker,
-                    asset_type: determineAssetType(quote as unknown as Record<string, unknown>),
+                    asset_type: determineAssetType(quote as Record<string, unknown>),
                     exchange: quote.exchange,
                     currency: quote.currency || 'USD',
                     last_updated: new Date(),

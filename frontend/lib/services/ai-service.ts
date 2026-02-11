@@ -234,18 +234,13 @@ async function callOpenAICompatible(
         timeout: 30000,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const kwargs: Record<string, any> = {
+    const response = await client.chat.completions.create({
         model,
         messages,
         temperature,
         max_tokens: maxTokens,
-    };
-    if (jsonMode) {
-        kwargs.response_format = { type: 'json_object' };
-    }
-
-    const response = await client.chat.completions.create(kwargs);
+        ...(jsonMode ? { response_format: { type: 'json_object' as const } } : {}),
+    });
     return response.choices[0]?.message?.content?.trim() ?? '';
 }
 
@@ -274,18 +269,13 @@ async function callClaude(
         systemText += '\n\nCRITICAL: Respond with ONLY valid JSON. No markdown, no code blocks.';
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const kwargs: Record<string, any> = {
+    const response = await client.messages.create({
         model,
         messages: userMessages,
         temperature,
         max_tokens: maxTokens,
-    };
-    if (systemText.trim()) {
-        kwargs.system = systemText.trim();
-    }
-
-    const response = await client.messages.create(kwargs);
+        ...(systemText.trim() ? { system: systemText.trim() } : {}),
+    });
     const block = response.content[0];
     return block.type === 'text' ? block.text.trim() : '';
 }
