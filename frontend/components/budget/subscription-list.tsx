@@ -136,7 +136,7 @@ export function SubscriptionList({ onRefreshTransactions }: SubscriptionListProp
         return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
     }
 
-    const monthlyTotal = subscriptions
+    const monthlyTotal = (subscriptions || [])
         .filter(s => s.is_active)
         .reduce((sum, s) => {
             if (s.frequency === "yearly") return sum + (s.amount / 12)
@@ -180,7 +180,7 @@ export function SubscriptionList({ onRefreshTransactions }: SubscriptionListProp
                     </div>
 
                     {/* Detected Subscriptions */}
-                    {detectedSubs.length > 0 && (
+                    {detectedSubs?.length > 0 && (
                         <div className="space-y-2">
                             <h4 className="text-sm font-medium flex items-center gap-2">
                                 <Sparkles className="h-4 w-4 text-accent" />
