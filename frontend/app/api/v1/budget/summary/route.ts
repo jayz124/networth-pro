@@ -13,9 +13,16 @@ export async function GET(request: NextRequest) {
     const start = startDate
       ? new Date(startDate)
       : new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = endDate
-      ? new Date(endDate + 'T23:59:59.999Z')
-      : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    let end;
+    if (endDate) {
+      end = new Date(endDate);
+      if (!endDate.includes('T')) {
+        end.setHours(23, 59, 59, 999);
+      }
+    } else {
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
 
     const transactions = await prisma.transaction.findMany({
       where: {
@@ -33,24 +40,26 @@ export async function GET(request: NextRequest) {
       {
         category_id: number;
         category_name: string;
-        icon: string | null;
-        color: string | null;
+        category_icon: string | null;
+        category_color: string | null;
         is_income: boolean;
         budget_limit: number | null;
         income: number;
         expenses: number;
+        net: number;
         transactions: number;
       }
     > = {};
     const uncategorized = {
       category_id: 0,
       category_name: 'Uncategorized',
-      icon: null as string | null,
-      color: null as string | null,
+      category_icon: null as string | null,
+      category_color: null as string | null,
       is_income: false,
       budget_limit: null as number | null,
       income: 0,
       expenses: 0,
+      net: 0,
       transactions: 0,
     };
 
@@ -67,12 +76,13 @@ export async function GET(request: NextRequest) {
           byCategory[catId] = {
             category_id: catId,
             category_name: txn.category.name,
-            icon: txn.category.icon,
-            color: txn.category.color,
+            category_icon: txn.category.icon,
+            category_color: txn.category.color,
             is_income: txn.category.is_income,
             budget_limit: txn.category.budget_limit,
             income: 0,
             expenses: 0,
+            net: 0,
             transactions: 0,
           };
         }
@@ -92,14 +102,26 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Compute net per category
+    for (const cat of Object.values(byCategory)) {
+      cat.net = Math.round((cat.income - cat.expenses) * 100) / 100;
+      cat.income = Math.round(cat.income * 100) / 100;
+      cat.expenses = Math.round(cat.expenses * 100) / 100;
+    }
+    uncategorized.net = Math.round((uncategorized.income - uncategorized.expenses) * 100) / 100;
+    uncategorized.income = Math.round(uncategorized.income * 100) / 100;
+    uncategorized.expenses = Math.round(uncategorized.expenses * 100) / 100;
+
     const categoryList = Object.values(byCategory).sort((a, b) => b.expenses - a.expenses);
     if (uncategorized.transactions > 0) {
       categoryList.push(uncategorized);
     }
 
     return NextResponse.json({
-      start_date: start.toISOString().split('T')[0],
-      end_date: end.toISOString().split('T')[0],
+      period: {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0],
+      },
       total_income: Math.round(totalIncome * 100) / 100,
       total_expenses: Math.round(totalExpenses * 100) / 100,
       net: Math.round((totalIncome - totalExpenses) * 100) / 100,

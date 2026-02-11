@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     // Group by month
     const monthlyData: Record<
       string,
-      { month: string; total_income: number; total_expenses: number; net: number; transaction_count: number }
+      { month: string; income: number; expenses: number; net: number; transaction_count: number }
     > = {};
 
     for (const txn of transactions) {
@@ -34,26 +34,26 @@ export async function GET(request: NextRequest) {
       if (!monthlyData[key]) {
         monthlyData[key] = {
           month: key,
-          total_income: 0,
-          total_expenses: 0,
+          income: 0,
+          expenses: 0,
           net: 0,
           transaction_count: 0,
         };
       }
 
       if (txn.amount > 0) {
-        monthlyData[key].total_income += txn.amount;
+        monthlyData[key].income += txn.amount;
       } else {
-        monthlyData[key].total_expenses += Math.abs(txn.amount);
+        monthlyData[key].expenses += Math.abs(txn.amount);
       }
       monthlyData[key].transaction_count += 1;
     }
 
     // Calculate net for each month
     for (const data of Object.values(monthlyData)) {
-      data.total_income = Math.round(data.total_income * 100) / 100;
-      data.total_expenses = Math.round(data.total_expenses * 100) / 100;
-      data.net = Math.round((data.total_income - data.total_expenses) * 100) / 100;
+      data.income = Math.round(data.income * 100) / 100;
+      data.expenses = Math.round(data.expenses * 100) / 100;
+      data.net = Math.round((data.income - data.expenses) * 100) / 100;
     }
 
     // Sort by month and return

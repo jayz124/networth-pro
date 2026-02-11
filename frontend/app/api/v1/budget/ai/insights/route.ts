@@ -3,7 +3,9 @@ import { prisma } from '@/lib/prisma';
 import {
   generateSpendingInsights,
   generateEnhancedSpendingInsights,
+  isAIAvailable,
 } from '@/lib/services/ai-insights';
+import { resolveProvider } from '@/lib/services/ai-service';
 
 // GET /api/v1/budget/ai/insights — spending insights
 export async function GET(request: NextRequest) {
@@ -81,6 +83,21 @@ export async function GET(request: NextRequest) {
       ? { total_income: prevIncome, total_expenses: prevExpenses }
       : null;
 
+    // Determine AI availability for response metadata
+    const aiAvailable = await isAIAvailable();
+    let providerName: string | null = null;
+    if (aiAvailable) {
+      try {
+        const { provider } = await resolveProvider();
+        providerName = provider;
+      } catch { /* ignore */ }
+    }
+
+    const period = {
+      start: startOfMonth.toISOString().split('T')[0],
+      end: endOfMonth.toISOString().split('T')[0],
+    };
+
     if (enhanced) {
       // Get cash flow data
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
@@ -120,7 +137,12 @@ export async function GET(request: NextRequest) {
         cashFlow,
         subscriptions,
       );
-      return NextResponse.json(result);
+      return NextResponse.json({
+        ...result,
+        ai_powered: aiAvailable,
+        ai_provider_name: providerName,
+        period,
+      });
     } else {
       const txnRecords = transactions.map((t) => ({
         date: t.date.toISOString().split('T')[0],
@@ -130,7 +152,12 @@ export async function GET(request: NextRequest) {
       }));
 
       const insights = await generateSpendingInsights(summary, txnRecords, prevSummary);
-      return NextResponse.json({ insights });
+      return NextResponse.json({
+        insights,
+        ai_powered: aiAvailable,
+        ai_provider_name: providerName,
+        period,
+      });
     }
   } catch (e) {
     console.error('Failed to generate spending insights:', e);

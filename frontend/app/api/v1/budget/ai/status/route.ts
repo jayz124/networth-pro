@@ -5,18 +5,21 @@ import { resolveProvider } from '@/lib/services/ai-service';
 export async function GET() {
   try {
     const { provider, apiKey, model } = await resolveProvider();
+    const isAvailable = Boolean(apiKey);
 
     return NextResponse.json({
-      available: Boolean(apiKey),
-      provider: apiKey ? provider : null,
-      model: apiKey ? model : null,
+      ai_available: isAvailable,
+      message: isAvailable
+        ? `AI powered by ${provider} (${model})`
+        : 'No AI provider configured. Set an API key in Settings.',
+      ai_provider_name: isAvailable ? provider : null,
     });
   } catch (e) {
     console.error('Failed to check AI status:', e);
     return NextResponse.json({
-      available: false,
-      provider: null,
-      model: null,
+      ai_available: false,
+      message: 'Failed to check AI status',
+      ai_provider_name: null,
     });
   }
 }

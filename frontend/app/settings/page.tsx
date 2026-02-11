@@ -874,7 +874,7 @@ export default function SettingsPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span>Version</span>
-                                <span className="font-mono">1.3.6</span>
+                                <span className="font-mono">1.5.0</span>
                             </div>
                         </div>
                     </CardContent>

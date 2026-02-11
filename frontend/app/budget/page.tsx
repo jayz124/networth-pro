@@ -35,7 +35,7 @@ import {
     fetchCashFlow,
 } from "@/lib/api"
 
-type DateRange = "this-month" | "last-month" | "last-3-months" | "last-6-months" | "this-year"
+type DateRange = "this-month" | "last-month" | "last-3-months" | "last-6-months" | "last-12-months" | "this-year"
 
 export default function BudgetPage() {
     const [transactions, setTransactions] = React.useState<Transaction[]>([])
@@ -78,6 +78,12 @@ export default function BudgetPage() {
                     start: sixMonthsAgo.toISOString(),
                     end: now.toISOString(),
                 }
+            case "last-12-months":
+                const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, 1)
+                return {
+                    start: twelveMonthsAgo.toISOString(),
+                    end: now.toISOString(),
+                }
             case "this-year":
                 const startOfYear = new Date(now.getFullYear(), 0, 1)
                 return {
@@ -92,15 +98,28 @@ export default function BudgetPage() {
         }
     }, [])
 
+    const getCashFlowMonths = React.useCallback((range: DateRange): number => {
+        switch (range) {
+            case "this-month": return 1
+            case "last-month": return 2
+            case "last-3-months": return 3
+            case "last-6-months": return 6
+            case "last-12-months": return 12
+            case "this-year": return new Date().getMonth() + 1
+            default: return 6
+        }
+    }, [])
+
     const loadData = React.useCallback(async () => {
         setIsLoading(true)
         const { start, end } = getDateRange(dateRange)
+        const cashFlowMonths = getCashFlowMonths(dateRange)
 
         const [cats, accts, sum, cashFlow] = await Promise.all([
             fetchBudgetCategories(),
             fetchAccounts(),
             fetchBudgetSummary({ start_date: start, end_date: end }),
-            fetchCashFlow(6),
+            fetchCashFlow(cashFlowMonths),
         ])
 
         setCategories(cats)
@@ -108,7 +127,7 @@ export default function BudgetPage() {
         setSummary(sum)
         setCashFlowData(cashFlow)
         setIsLoading(false)
-    }, [dateRange, getDateRange])
+    }, [dateRange, getDateRange, getCashFlowMonths])
 
     const loadTransactions = React.useCallback(async () => {
         setIsTransactionsLoading(true)
@@ -150,6 +169,7 @@ export default function BudgetPage() {
             case "last-month": return "Last Month"
             case "last-3-months": return "Last 3 Months"
             case "last-6-months": return "Last 6 Months"
+            case "last-12-months": return "Last 12 Months"
             case "this-year": return "This Year"
             default: return "This Month"
         }
@@ -176,6 +196,7 @@ export default function BudgetPage() {
                             <SelectItem value="last-month">Last Month</SelectItem>
                             <SelectItem value="last-3-months">Last 3 Months</SelectItem>
                             <SelectItem value="last-6-months">Last 6 Months</SelectItem>
+                            <SelectItem value="last-12-months">Last 12 Months</SelectItem>
                             <SelectItem value="this-year">This Year</SelectItem>
                         </SelectContent>
                     </Select>

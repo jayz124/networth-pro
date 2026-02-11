@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
 
     if (transactions.length === 0) {
       return NextResponse.json({
-        categorized: 0,
-        total: 0,
+        processed: 0,
+        updated: 0,
         results: [],
       });
     }
@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      categorized,
-      total: transactions.length,
+      processed: transactions.length,
+      updated: categorized,
       results,
     });
   } catch (e) {

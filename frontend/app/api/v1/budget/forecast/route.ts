@@ -1,118 +1,159 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/v1/budget/forecast — budget forecast based on historical data
+// GET /api/v1/budget/forecast — forecast future income/expenses from recurring transactions
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const forecastMonths = Math.min(parseInt(searchParams.get('months') || '3', 10), 12);
+    const forecastMonths = Math.min(parseInt(searchParams.get('months') || '6', 10), 12);
 
-    // Get last 6 months of data for forecasting
-    const now = new Date();
-    const startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
-
-    const transactions = await prisma.transaction.findMany({
-      where: { date: { gte: startDate } },
-      select: { date: true, amount: true },
-      orderBy: { date: 'asc' },
+    // Get all recurring transactions
+    const recurringTxns = await prisma.transaction.findMany({
+      where: {
+        is_recurring: true,
+        recurrence_frequency: { not: null },
+      },
+      include: {
+        category: { select: { id: true, name: true } },
+      },
     });
 
-    // Group by month
-    const monthlyData: Record<string, { income: number; expenses: number }> = {};
-
-    for (const txn of transactions) {
-      const dt = new Date(txn.date);
-      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
-
-      if (!monthlyData[key]) {
-        monthlyData[key] = { income: 0, expenses: 0 };
-      }
-
-      if (txn.amount > 0) {
-        monthlyData[key].income += txn.amount;
-      } else {
-        monthlyData[key].expenses += Math.abs(txn.amount);
-      }
-    }
-
-    const months = Object.values(monthlyData);
-    const monthCount = months.length;
-
-    if (monthCount === 0) {
-      return NextResponse.json({
-        historical_months: 0,
-        forecast: [],
-        avg_income: 0,
-        avg_expenses: 0,
-      });
-    }
-
-    // Calculate averages
-    const avgIncome = months.reduce((s, m) => s + m.income, 0) / monthCount;
-    const avgExpenses = months.reduce((s, m) => s + m.expenses, 0) / monthCount;
-
-    // Calculate trends (simple linear regression on expenses)
-    let expenseTrend = 0;
-    let incomeTrend = 0;
-    if (monthCount >= 3) {
-      const incomes = months.map((m) => m.income);
-      const expenses = months.map((m) => m.expenses);
-
-      // Simple linear slope
-      const n = months.length;
-      const xMean = (n - 1) / 2;
-      const yMeanInc = incomes.reduce((s, v) => s + v, 0) / n;
-      const yMeanExp = expenses.reduce((s, v) => s + v, 0) / n;
-
-      let numInc = 0, numExp = 0, denom = 0;
-      for (let i = 0; i < n; i++) {
-        numInc += (i - xMean) * (incomes[i] - yMeanInc);
-        numExp += (i - xMean) * (expenses[i] - yMeanExp);
-        denom += (i - xMean) * (i - xMean);
-      }
-
-      if (denom > 0) {
-        incomeTrend = numInc / denom;
-        expenseTrend = numExp / denom;
-      }
-    }
-
-    // Generate forecast
-    const forecast = [];
-    for (let i = 1; i <= forecastMonths; i++) {
-      const forecastDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const monthKey = `${forecastDate.getFullYear()}-${String(forecastDate.getMonth() + 1).padStart(2, '0')}`;
-
-      const projectedIncome = Math.max(0, avgIncome + incomeTrend * (monthCount + i));
-      const projectedExpenses = Math.max(0, avgExpenses + expenseTrend * (monthCount + i));
-
-      forecast.push({
-        month: monthKey,
-        projected_income: Math.round(projectedIncome * 100) / 100,
-        projected_expenses: Math.round(projectedExpenses * 100) / 100,
-        projected_net: Math.round((projectedIncome - projectedExpenses) * 100) / 100,
-      });
-    }
-
-    // Get subscriptions for recurring cost estimate
+    // Get active subscriptions
     const subscriptions = await prisma.subscription.findMany({
       where: { is_active: true },
+      include: {
+        category: { select: { id: true, name: true } },
+      },
     });
 
-    let monthlySubscriptions = 0;
-    for (const sub of subscriptions) {
-      const amt = Math.abs(sub.amount);
-      monthlySubscriptions += sub.frequency === 'yearly' ? amt / 12 : amt;
+    const now = new Date();
+    const forecastData = [];
+
+    for (let monthOffset = 0; monthOffset < forecastMonths; monthOffset++) {
+      let forecastMonth = now.getMonth() + monthOffset;
+      let forecastYear = now.getFullYear();
+      while (forecastMonth > 11) {
+        forecastMonth -= 12;
+        forecastYear += 1;
+      }
+
+      const monthStart = new Date(forecastYear, forecastMonth, 1);
+      const monthKey = `${forecastYear}-${String(forecastMonth + 1).padStart(2, '0')}`;
+      const monthName = monthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      let monthIncome = 0;
+      let monthExpenses = 0;
+      const projectedTransactions: Array<{
+        description: string;
+        amount: number;
+        frequency: string;
+        category_name: string | null;
+        occurrences: number;
+        total: number;
+        type: string;
+      }> = [];
+
+      // Project recurring transactions
+      for (const txn of recurringTxns) {
+        const frequency = txn.recurrence_frequency!;
+        let occurrences = 0;
+
+        if (frequency === 'monthly') {
+          occurrences = 1;
+        } else if (frequency === 'yearly') {
+          const txnDate = new Date(txn.date);
+          occurrences = txnDate.getMonth() === forecastMonth ? 1 : 0;
+        } else if (frequency === 'daily') {
+          const monthEnd = new Date(forecastYear, forecastMonth + 1, 0);
+          occurrences = monthEnd.getDate();
+        } else if (frequency === 'weekly') {
+          occurrences = 4;
+        } else if (frequency === 'bi-weekly' || frequency === 'biweekly') {
+          occurrences = 2;
+        } else {
+          occurrences = 1;
+        }
+
+        if (occurrences > 0) {
+          const totalAmount = txn.amount * occurrences;
+          if (totalAmount >= 0) {
+            monthIncome += totalAmount;
+          } else {
+            monthExpenses += Math.abs(totalAmount);
+          }
+
+          projectedTransactions.push({
+            description: txn.description,
+            amount: txn.amount,
+            occurrences,
+            total: totalAmount,
+            category_name: txn.category?.name || null,
+            frequency,
+            type: txn.amount >= 0 ? 'income' : 'expense',
+          });
+        }
+      }
+
+      // Project subscriptions (always expenses)
+      for (const sub of subscriptions) {
+        let occurrences = 0;
+
+        if (sub.frequency === 'monthly') {
+          occurrences = 1;
+        } else if (sub.frequency === 'yearly') {
+          if (sub.next_billing_date) {
+            const billingDate = new Date(sub.next_billing_date);
+            occurrences = billingDate.getMonth() === forecastMonth ? 1 : 0;
+          } else {
+            occurrences = 0;
+          }
+        } else if (sub.frequency === 'weekly') {
+          occurrences = 4;
+        } else if (sub.frequency === 'biweekly') {
+          occurrences = 2;
+        } else {
+          occurrences = 1;
+        }
+
+        if (occurrences > 0) {
+          const totalAmount = -sub.amount * occurrences;
+          monthExpenses += Math.abs(totalAmount);
+
+          projectedTransactions.push({
+            description: `Subscription: ${sub.name}`,
+            amount: -sub.amount,
+            occurrences,
+            total: totalAmount,
+            category_name: sub.category?.name || 'Subscriptions',
+            frequency: sub.frequency,
+            type: 'expense',
+          });
+        }
+      }
+
+      forecastData.push({
+        month: monthKey,
+        month_name: monthName,
+        income: Math.round(monthIncome * 100) / 100,
+        expenses: Math.round(monthExpenses * 100) / 100,
+        net: Math.round((monthIncome - monthExpenses) * 100) / 100,
+        transactions: projectedTransactions,
+      });
     }
 
+    const totalIncome = forecastData.reduce((s, m) => s + m.income, 0);
+    const totalExpenses = forecastData.reduce((s, m) => s + m.expenses, 0);
+
     return NextResponse.json({
-      historical_months: monthCount,
-      forecast,
-      avg_income: Math.round(avgIncome * 100) / 100,
-      avg_expenses: Math.round(avgExpenses * 100) / 100,
-      monthly_subscriptions: Math.round(monthlySubscriptions * 100) / 100,
-      income_trend: incomeTrend > 50 ? 'increasing' : incomeTrend < -50 ? 'decreasing' : 'stable',
-      expense_trend: expenseTrend > 50 ? 'increasing' : expenseTrend < -50 ? 'decreasing' : 'stable',
+      months: forecastMonths,
+      total_projected_income: Math.round(totalIncome * 100) / 100,
+      total_projected_expenses: Math.round(totalExpenses * 100) / 100,
+      total_projected_net: Math.round((totalIncome - totalExpenses) * 100) / 100,
+      monthly_average_income: Math.round((totalIncome / forecastMonths) * 100) / 100,
+      monthly_average_expenses: Math.round((totalExpenses / forecastMonths) * 100) / 100,
+      forecast: forecastData,
+      recurring_count: recurringTxns.length,
+      subscription_count: subscriptions.length,
     });
   } catch (e) {
     console.error('Failed to generate forecast:', e);
