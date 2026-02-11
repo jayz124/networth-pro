@@ -15,6 +15,7 @@ import { runMonteCarlo, SimulationResult } from "@/lib/monte-carlo"
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from "recharts"
 import { Play, Dice6 } from "lucide-react"
 import { useSettings } from "@/lib/settings-context"
+import { chartColors, tooltipCursor, gridProps, xAxisDefaults, yAxisDefaults } from "@/lib/chart-theme"
 
 export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
     const [result, setResult] = React.useState<SimulationResult | null>(null)
@@ -132,22 +133,16 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                         <div className="h-[300px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={chartData}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
+                                    <CartesianGrid {...gridProps} />
                                     <XAxis
+                                        {...xAxisDefaults}
                                         dataKey="age"
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tick={{ className: "fill-muted-foreground text-[11px]" }}
                                         tickFormatter={(v) => `${v}`}
-                                        dy={8}
                                     />
                                     <YAxis
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tick={{ className: "fill-muted-foreground text-[11px]" }}
+                                        {...yAxisDefaults}
                                         tickFormatter={formatCompactCurrency}
                                         width={65}
-                                        dx={-5}
                                     />
                                     <Tooltip
                                         content={({ active, payload, label }) => {
@@ -161,7 +156,7 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                                                                 <div className="flex items-center gap-2">
                                                                     <div
                                                                         className="w-2.5 h-2.5 rounded-full"
-                                                                        style={{ backgroundColor: entry.name === 'p90' ? '#10b981' : entry.name === 'p50' ? '#3b82f6' : '#ef4444' }}
+                                                                        style={{ backgroundColor: entry.name === 'p90' ? chartColors.gain : entry.name === 'p50' ? chartColors.primary : chartColors.loss }}
                                                                     />
                                                                     <span className="text-xs text-muted-foreground">
                                                                         {entry.name === 'p90' ? 'Upside (90th)' : entry.name === 'p50' ? 'Median (50th)' : 'Downside (10th)'}
@@ -176,22 +171,22 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                                                 </div>
                                             )
                                         }}
-                                        cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeDasharray: '4 4' }}
+                                        cursor={tooltipCursor}
                                     />
-                                    <ReferenceLine x={config.retirementAge} stroke="#10b981" strokeDasharray="3 3" />
-                                    <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="3 3" />
+                                    <ReferenceLine x={config.retirementAge} stroke={chartColors.gain} strokeDasharray="3 3" />
+                                    <ReferenceLine y={0} stroke={chartColors.loss} strokeDasharray="3 3" />
                                     <Area
                                         type="monotone"
                                         dataKey="p90"
                                         stroke="transparent"
-                                        fill="#10b981"
+                                        fill={chartColors.gain}
                                         fillOpacity={0.15}
                                         name="p90"
                                     />
                                     <Area
                                         type="monotone"
                                         dataKey="p50"
-                                        stroke="#3b82f6"
+                                        stroke={chartColors.primary}
                                         fill="transparent"
                                         strokeWidth={2}
                                         name="p50"
@@ -199,7 +194,7 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                                     <Area
                                         type="monotone"
                                         dataKey="p10"
-                                        stroke="#ef4444"
+                                        stroke={chartColors.loss}
                                         fill="transparent"
                                         strokeDasharray="3 3"
                                         name="p10"

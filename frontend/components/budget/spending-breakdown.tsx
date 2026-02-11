@@ -13,6 +13,7 @@ import {
 import { BudgetSummary } from "@/lib/api"
 import { useSettings } from "@/lib/settings-context"
 import { LoadingState } from "@/components/ui/loading-state"
+import { tooltipContentStyle } from "@/lib/chart-theme"
 
 interface SpendingBreakdownProps {
     summary: BudgetSummary | null
@@ -92,11 +93,7 @@ export function SpendingBreakdown({ summary, isLoading }: SpendingBreakdownProps
                                 ))}
                             </Pie>
                             <Tooltip
-                                contentStyle={{
-                                    backgroundColor: "hsl(var(--background))",
-                                    border: "1px solid hsl(var(--border))",
-                                    borderRadius: "8px",
-                                }}
+                                contentStyle={tooltipContentStyle}
                                 formatter={(value) => [formatCurrency(typeof value === 'number' ? value : 0), "Amount"]}
                             />
                             <Legend

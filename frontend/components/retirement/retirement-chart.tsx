@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { useSettings } from "@/lib/settings-context"
+import { chartColors, tooltipCursor, gridProps, xAxisDefaults, yAxisDefaults } from "@/lib/chart-theme"
 
 type RetirementChartProps = {
     data: ProjectionPoint[]
@@ -117,53 +118,45 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                     >
                         <defs>
                             <linearGradient id="liabilitiesGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
-                                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
+                                <stop offset="5%" stopColor={chartColors.loss} stopOpacity={0.4} />
+                                <stop offset="95%" stopColor={chartColors.loss} stopOpacity={0.05} />
                             </linearGradient>
                             <linearGradient id="realEstateGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
-                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.05} />
+                                <stop offset="5%" stopColor={chartColors.secondary} stopOpacity={0.4} />
+                                <stop offset="95%" stopColor={chartColors.secondary} stopOpacity={0.05} />
                             </linearGradient>
                             <linearGradient id="liquidAssetsGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
+                                <stop offset="5%" stopColor={chartColors.primary} stopOpacity={0.4} />
+                                <stop offset="95%" stopColor={chartColors.primary} stopOpacity={0.05} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
+                        <CartesianGrid {...gridProps} />
                         <XAxis
+                            {...xAxisDefaults}
                             dataKey="age"
-                            tickLine={false}
-                            axisLine={false}
-                            className="text-xs"
-                            tick={{ className: "fill-muted-foreground" }}
                             tickFormatter={(val) => `${val}`}
                             interval="preserveStartEnd"
                             minTickGap={30}
-                            dy={8}
                         />
                         <YAxis
-                            tickLine={false}
-                            axisLine={false}
-                            className="text-xs"
-                            tick={{ className: "fill-muted-foreground" }}
+                            {...yAxisDefaults}
                             tickFormatter={formatCompactCurrency}
                             width={80}
-                            dx={-5}
                         />
                         <Tooltip
                             content={<CustomTooltip formatter={formatCompactCurrency} />}
-                            cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeDasharray: '4 4' }}
+                            cursor={tooltipCursor}
                         />
                         <Legend content={<CustomLegend />} />
                         <ReferenceLine
                             x={retirementAge}
-                            stroke="#10b981"
+                            stroke={chartColors.gain}
                             strokeDasharray="5 5"
                             strokeWidth={2}
                             label={{
                                 value: "Retire",
                                 position: "insideTopRight",
-                                fill: "#10b981",
+                                fill: chartColors.gain,
                                 fontSize: 11,
                                 fontWeight: 600,
                                 dy: -15
@@ -176,7 +169,7 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                                     type="monotone"
                                     dataKey="liabilities"
                                     stackId="1"
-                                    stroke="#ef4444"
+                                    stroke={chartColors.loss}
                                     strokeWidth={1.5}
                                     fill="url(#liabilitiesGradient)"
                                     name="Liabilities"
@@ -185,7 +178,7 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                                     type="monotone"
                                     dataKey="realEstate"
                                     stackId="2"
-                                    stroke="#8b5cf6"
+                                    stroke={chartColors.secondary}
                                     strokeWidth={1.5}
                                     fill="url(#realEstateGradient)"
                                     name="Real Estate"
@@ -194,7 +187,7 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                                     type="monotone"
                                     dataKey="liquidAssets"
                                     stackId="2"
-                                    stroke="#3b82f6"
+                                    stroke={chartColors.primary}
                                     strokeWidth={1.5}
                                     fill="url(#liquidAssetsGradient)"
                                     name="Liquid Assets"
@@ -202,7 +195,7 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                                 <Line
                                     type="monotone"
                                     dataKey="netWorth"
-                                    stroke="#10b981"
+                                    stroke={chartColors.gain}
                                     strokeWidth={2.5}
                                     dot={false}
                                     name="Net Worth"
@@ -212,8 +205,8 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                                     <Area
                                         type="monotone"
                                         dataKey="shortfall"
-                                        stroke="#dc2626"
-                                        fill="#dc2626"
+                                        stroke={chartColors.shortfall}
+                                        fill={chartColors.shortfall}
                                         fillOpacity={0.4}
                                         name="Shortfall"
                                     />
@@ -223,7 +216,7 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                             <Line
                                 type="monotone"
                                 dataKey="netWorth"
-                                stroke="#10b981"
+                                stroke={chartColors.gain}
                                 strokeWidth={2.5}
                                 dot={false}
                                 name="Net Worth"
@@ -258,17 +251,17 @@ export function AssetBreakdownChart({ data }: { data: ProjectionPoint[] }) {
             <CardContent className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
-                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} dy={8} />
-                        <YAxis tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} tickFormatter={formatCompactCurrency} width={70} dx={-5} />
+                        <CartesianGrid {...gridProps} />
+                        <XAxis {...xAxisDefaults} dataKey="age" />
+                        <YAxis {...yAxisDefaults} tickFormatter={formatCompactCurrency} />
                         <Tooltip content={<CustomTooltip formatter={formatCompactCurrency} />} />
                         <Legend content={<CustomLegend />} />
-                        <Area type="monotone" dataKey="primaryHome" stackId="1" stroke="#8b5cf6" strokeWidth={1.5} fill="#8b5cf6" fillOpacity={0.5} name="Primary Home" />
-                        <Area type="monotone" dataKey="investmentProperty" stackId="1" stroke="#a855f7" strokeWidth={1.5} fill="#a855f7" fillOpacity={0.5} name="Investment Property" />
-                        <Area type="monotone" dataKey="otherAssets" stackId="1" stroke="#c084fc" strokeWidth={1.5} fill="#c084fc" fillOpacity={0.5} name="Other Assets" />
-                        <Area type="monotone" dataKey="taxable" stackId="1" stroke="#3b82f6" strokeWidth={1.5} fill="#3b82f6" fillOpacity={0.5} name="Taxable" />
-                        <Area type="monotone" dataKey="deferred" stackId="1" stroke="#0ea5e9" strokeWidth={1.5} fill="#0ea5e9" fillOpacity={0.5} name="Tax-Deferred" />
-                        <Area type="monotone" dataKey="roth" stackId="1" stroke="#06b6d4" strokeWidth={1.5} fill="#06b6d4" fillOpacity={0.5} name="Roth" />
+                        <Area type="monotone" dataKey="primaryHome" stackId="1" stroke={chartColors.secondary} strokeWidth={1.5} fill={chartColors.secondary} fillOpacity={0.5} name="Primary Home" />
+                        <Area type="monotone" dataKey="investmentProperty" stackId="1" stroke={chartColors.purpleLight} strokeWidth={1.5} fill={chartColors.purpleLight} fillOpacity={0.5} name="Investment Property" />
+                        <Area type="monotone" dataKey="otherAssets" stackId="1" stroke={chartColors.purpleLighter} strokeWidth={1.5} fill={chartColors.purpleLighter} fillOpacity={0.5} name="Other Assets" />
+                        <Area type="monotone" dataKey="taxable" stackId="1" stroke={chartColors.primary} strokeWidth={1.5} fill={chartColors.primary} fillOpacity={0.5} name="Taxable" />
+                        <Area type="monotone" dataKey="deferred" stackId="1" stroke={chartColors.blueLight} strokeWidth={1.5} fill={chartColors.blueLight} fillOpacity={0.5} name="Tax-Deferred" />
+                        <Area type="monotone" dataKey="roth" stackId="1" stroke={chartColors.cyan} strokeWidth={1.5} fill={chartColors.cyan} fillOpacity={0.5} name="Roth" />
                     </AreaChart>
                 </ResponsiveContainer>
             </CardContent>
@@ -315,21 +308,17 @@ export function AssetAllocationChart({ data }: { data: ProjectionPoint[] }) {
             <CardContent className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
-                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} dy={8} />
+                        <CartesianGrid {...gridProps} />
+                        <XAxis {...xAxisDefaults} dataKey="age" />
                         <YAxis
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ className: "fill-muted-foreground text-[11px]" }}
+                            {...yAxisDefaults}
                             tickFormatter={viewMode === 'values' ? formatCompactCurrency : (v) => `${v.toFixed(0)}%`}
-                            width={70}
-                            dx={-5}
                         />
                         <Tooltip content={<CustomTooltip formatter={formatValue} />} />
                         <Legend content={<CustomLegend />} />
-                        <Area type="monotone" dataKey="stocks" stackId="1" stroke="#10b981" strokeWidth={1.5} fill="#10b981" fillOpacity={0.5} name="Stocks" />
-                        <Area type="monotone" dataKey="bonds" stackId="1" stroke="#3b82f6" strokeWidth={1.5} fill="#3b82f6" fillOpacity={0.5} name="Bonds" />
-                        <Area type="monotone" dataKey="cash" stackId="1" stroke="#94a3b8" strokeWidth={1.5} fill="#94a3b8" fillOpacity={0.5} name="Cash" />
+                        <Area type="monotone" dataKey="stocks" stackId="1" stroke={chartColors.gain} strokeWidth={1.5} fill={chartColors.gain} fillOpacity={0.5} name="Stocks" />
+                        <Area type="monotone" dataKey="bonds" stackId="1" stroke={chartColors.primary} strokeWidth={1.5} fill={chartColors.primary} fillOpacity={0.5} name="Bonds" />
+                        <Area type="monotone" dataKey="cash" stackId="1" stroke={chartColors.slate} strokeWidth={1.5} fill={chartColors.slate} fillOpacity={0.5} name="Cash" />
                     </AreaChart>
                 </ResponsiveContainer>
             </CardContent>
@@ -361,19 +350,19 @@ export function IncomeCompositionChart({ data, retirementAge }: { data: Projecti
             <CardContent className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
-                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} dy={8} />
-                        <YAxis tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} tickFormatter={formatCompactCurrency} width={70} dx={-5} />
+                        <CartesianGrid {...gridProps} />
+                        <XAxis {...xAxisDefaults} dataKey="age" />
+                        <YAxis {...yAxisDefaults} tickFormatter={formatCompactCurrency} />
                         <Tooltip content={<CustomTooltip formatter={formatCompactCurrency} />} />
                         <Legend content={<CustomLegend />} />
-                        <ReferenceLine x={retirementAge} stroke="#10b981" strokeDasharray="5 5" strokeWidth={2} />
-                        <Bar dataKey="savings" stackId="income" fill="#10b981" radius={[2, 2, 0, 0]} name="Savings" />
-                        <Bar dataKey="pension" stackId="income" fill="#8b5cf6" radius={[2, 2, 0, 0]} name="Pension" />
-                        <Bar dataKey="rental" stackId="income" fill="#f59e0b" radius={[2, 2, 0, 0]} name="Rental" />
-                        <Bar dataKey="dividends" stackId="income" fill="#3b82f6" radius={[2, 2, 0, 0]} name="Dividends" />
-                        <Bar dataKey="drawdown" stackId="income" fill="#06b6d4" radius={[2, 2, 0, 0]} name="Drawdown" />
-                        <Bar dataKey="tax" stackId="expense" fill="#ef4444" radius={[0, 0, 2, 2]} name="Tax" />
-                        <Bar dataKey="mortgage" stackId="expense" fill="#f97316" radius={[0, 0, 2, 2]} name="Mortgage" />
+                        <ReferenceLine x={retirementAge} stroke={chartColors.gain} strokeDasharray="5 5" strokeWidth={2} />
+                        <Bar dataKey="savings" stackId="income" fill={chartColors.gain} radius={[2, 2, 0, 0]} name="Savings" />
+                        <Bar dataKey="pension" stackId="income" fill={chartColors.secondary} radius={[2, 2, 0, 0]} name="Pension" />
+                        <Bar dataKey="rental" stackId="income" fill={chartColors.amber} radius={[2, 2, 0, 0]} name="Rental" />
+                        <Bar dataKey="dividends" stackId="income" fill={chartColors.primary} radius={[2, 2, 0, 0]} name="Dividends" />
+                        <Bar dataKey="drawdown" stackId="income" fill={chartColors.cyan} radius={[2, 2, 0, 0]} name="Drawdown" />
+                        <Bar dataKey="tax" stackId="expense" fill={chartColors.loss} radius={[0, 0, 2, 2]} name="Tax" />
+                        <Bar dataKey="mortgage" stackId="expense" fill={chartColors.orange} radius={[0, 0, 2, 2]} name="Mortgage" />
                     </BarChart>
                 </ResponsiveContainer>
             </CardContent>
@@ -415,26 +404,26 @@ export function TaxEfficiencyChart({ data, retirementAge }: { data: ProjectionPo
                     <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
                         <defs>
                             <linearGradient id="taxGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
-                                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
+                                <stop offset="5%" stopColor={chartColors.loss} stopOpacity={0.4} />
+                                <stop offset="95%" stopColor={chartColors.loss} stopOpacity={0.05} />
                             </linearGradient>
                             <linearGradient id="grossIncomeGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
+                                <stop offset="5%" stopColor={chartColors.primary} stopOpacity={0.4} />
+                                <stop offset="95%" stopColor={chartColors.primary} stopOpacity={0.05} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
-                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} dy={8} />
-                        <YAxis tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} tickFormatter={formatCompactCurrency} width={70} dx={-5} />
+                        <CartesianGrid {...gridProps} />
+                        <XAxis {...xAxisDefaults} dataKey="age" />
+                        <YAxis {...yAxisDefaults} tickFormatter={formatCompactCurrency} />
                         <Tooltip content={<CustomTooltip formatter={formatCompactCurrency} />} />
                         <Legend content={<CustomLegend />} />
-                        <ReferenceLine x={retirementAge} stroke="#10b981" strokeDasharray="5 5" strokeWidth={2} />
+                        <ReferenceLine x={retirementAge} stroke={chartColors.gain} strokeDasharray="5 5" strokeWidth={2} />
 
                         {/* Gross Income (Base) */}
                         <Area
                             type="monotone"
                             dataKey="grossIncome"
-                            stroke="#3b82f6"
+                            stroke={chartColors.primary}
                             strokeWidth={2}
                             fill="url(#grossIncomeGradient)"
                             name="Gross Income"
@@ -444,7 +433,7 @@ export function TaxEfficiencyChart({ data, retirementAge }: { data: ProjectionPo
                         <Area
                             type="monotone"
                             dataKey="tax"
-                            stroke="#ef4444"
+                            stroke={chartColors.loss}
                             strokeWidth={2}
                             fill="url(#taxGradient)"
                             name="Tax Paid"
@@ -454,7 +443,7 @@ export function TaxEfficiencyChart({ data, retirementAge }: { data: ProjectionPo
                         <Line
                             type="monotone"
                             dataKey="netIncome"
-                            stroke="#10b981"
+                            stroke={chartColors.gain}
                             strokeWidth={2.5}
                             strokeDasharray="5 5"
                             dot={false}
@@ -491,15 +480,15 @@ export function DebtServiceChart({ data }: { data: ProjectionPoint[] }) {
             <CardContent className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
-                        <XAxis dataKey="age" tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} dy={8} />
-                        <YAxis tickLine={false} axisLine={false} tick={{ className: "fill-muted-foreground text-[11px]" }} tickFormatter={formatCompactCurrency} width={70} dx={-5} />
+                        <CartesianGrid {...gridProps} />
+                        <XAxis {...xAxisDefaults} dataKey="age" />
+                        <YAxis {...yAxisDefaults} tickFormatter={formatCompactCurrency} />
                         <Tooltip content={<CustomTooltip formatter={formatCompactCurrency} />} />
                         <Legend content={<CustomLegend />} />
-                        <Bar dataKey="mortgageInterest" stackId="mortgage" fill="#ef4444" radius={[2, 2, 0, 0]} name="Mortgage Interest" />
-                        <Bar dataKey="mortgagePrincipal" stackId="mortgage" fill="#10b981" radius={[2, 2, 0, 0]} name="Mortgage Principal" />
-                        <Bar dataKey="loanInterest" stackId="loan" fill="#f97316" radius={[2, 2, 0, 0]} name="Loan Interest" />
-                        <Bar dataKey="loanPrincipal" stackId="loan" fill="#06b6d4" radius={[2, 2, 0, 0]} name="Loan Principal" />
+                        <Bar dataKey="mortgageInterest" stackId="mortgage" fill={chartColors.loss} radius={[2, 2, 0, 0]} name="Mortgage Interest" />
+                        <Bar dataKey="mortgagePrincipal" stackId="mortgage" fill={chartColors.gain} radius={[2, 2, 0, 0]} name="Mortgage Principal" />
+                        <Bar dataKey="loanInterest" stackId="loan" fill={chartColors.orange} radius={[2, 2, 0, 0]} name="Loan Interest" />
+                        <Bar dataKey="loanPrincipal" stackId="loan" fill={chartColors.cyan} radius={[2, 2, 0, 0]} name="Loan Principal" />
                     </BarChart>
                 </ResponsiveContainer>
             </CardContent>

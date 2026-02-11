@@ -11,6 +11,7 @@ import {
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useSettings } from "@/lib/settings-context"
+import { tooltipContentStyle, chartColors, defaultAxisProps, gridProps } from "@/lib/chart-theme"
 
 interface HistoryData {
     date: string
@@ -57,9 +58,9 @@ export function NetWorthChart({ data }: { data: HistoryData[] }) {
                             <defs>
                                 {/* Gold/Amber gradient for the area fill */}
                                 <linearGradient id="colorNetWorth" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="hsl(38, 92%, 50%)" stopOpacity={0.3} />
-                                    <stop offset="50%" stopColor="hsl(38, 92%, 50%)" stopOpacity={0.1} />
-                                    <stop offset="95%" stopColor="hsl(38, 92%, 50%)" stopOpacity={0} />
+                                    <stop offset="5%" stopColor={chartColors.netWorth} stopOpacity={0.3} />
+                                    <stop offset="50%" stopColor={chartColors.netWorth} stopOpacity={0.1} />
+                                    <stop offset="95%" stopColor={chartColors.netWorth} stopOpacity={0} />
                                 </linearGradient>
                                 {/* Glow filter for the line */}
                                 <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
@@ -72,10 +73,7 @@ export function NetWorthChart({ data }: { data: HistoryData[] }) {
                             </defs>
                             <XAxis
                                 dataKey="date"
-                                stroke="hsl(var(--muted-foreground))"
-                                fontSize={11}
-                                tickLine={false}
-                                axisLine={false}
+                                {...defaultAxisProps}
                                 tickFormatter={(value) => {
                                     const date = new Date(value);
                                     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -83,27 +81,14 @@ export function NetWorthChart({ data }: { data: HistoryData[] }) {
                                 dy={10}
                             />
                             <YAxis
-                                stroke="hsl(var(--muted-foreground))"
-                                fontSize={11}
-                                tickLine={false}
-                                axisLine={false}
+                                {...defaultAxisProps}
                                 tickFormatter={(value) => formatCompactCurrency(value)}
+                                width={70}
                                 dx={-10}
                             />
-                            <CartesianGrid
-                                strokeDasharray="3 3"
-                                vertical={false}
-                                stroke="hsl(var(--border))"
-                                strokeOpacity={0.5}
-                            />
+                            <CartesianGrid {...gridProps} />
                             <Tooltip
-                                contentStyle={{
-                                    backgroundColor: "hsl(var(--card))",
-                                    borderRadius: "8px",
-                                    border: "1px solid hsl(var(--border))",
-                                    boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-                                    padding: "12px 16px"
-                                }}
+                                contentStyle={tooltipContentStyle}
                                 labelStyle={{
                                     color: "hsl(var(--foreground))",
                                     fontWeight: 600,
@@ -113,7 +98,7 @@ export function NetWorthChart({ data }: { data: HistoryData[] }) {
                                     color: "hsl(var(--muted-foreground))"
                                 }}
                                 formatter={(value: any) => [
-                                    <span key="value" style={{ color: "hsl(38, 92%, 50%)", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+                                    <span key="value" style={{ color: chartColors.netWorth, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
                                         {formatCurrency(value)}
                                     </span>,
                                     "Net Worth"
@@ -127,7 +112,7 @@ export function NetWorthChart({ data }: { data: HistoryData[] }) {
                             <Area
                                 type="monotone"
                                 dataKey="net_worth"
-                                stroke="hsl(38, 92%, 50%)"
+                                stroke={chartColors.netWorth}
                                 strokeWidth={2.5}
                                 fillOpacity={1}
                                 fill="url(#colorNetWorth)"

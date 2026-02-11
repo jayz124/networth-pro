@@ -17,6 +17,7 @@ import { TrendingUp, TrendingDown, Calendar, ArrowUpRight, ArrowDownRight } from
 import { LoadingState } from "@/components/ui/loading-state"
 import { ForecastResponse, fetchBudgetForecast } from "@/lib/api"
 import { useSettings } from "@/lib/settings-context"
+import { tooltipContentStyle, chartColors, defaultAxisProps, gridProps } from "@/lib/chart-theme"
 
 export function BudgetForecast() {
     const { formatCurrency, formatCompactCurrency } = useSettings()
@@ -181,33 +182,28 @@ export function BudgetForecast() {
                             <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                                        <stop offset="5%" stopColor={chartColors.gain} stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor={chartColors.gain} stopOpacity={0} />
                                     </linearGradient>
                                     <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                                        <stop offset="5%" stopColor={chartColors.loss} stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor={chartColors.loss} stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                <CartesianGrid {...gridProps} />
                                 <XAxis
                                     dataKey="month"
-                                    tick={{ fontSize: 12 }}
-                                    tickLine={false}
-                                    className="text-muted-foreground"
+                                    {...defaultAxisProps}
+                                    dy={8}
                                 />
                                 <YAxis
-                                    tick={{ fontSize: 12 }}
-                                    tickLine={false}
+                                    {...defaultAxisProps}
                                     tickFormatter={formatCompactCurrency}
-                                    className="text-muted-foreground"
+                                    width={70}
+                                    dx={-5}
                                 />
                                 <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "hsl(var(--background))",
-                                        border: "1px solid hsl(var(--border))",
-                                        borderRadius: "8px",
-                                    }}
+                                    contentStyle={tooltipContentStyle}
                                     formatter={(value, name) => [
                                         formatCurrency(typeof value === 'number' ? value : 0),
                                         typeof name === 'string' ? name.charAt(0).toUpperCase() + name.slice(1) : ''
@@ -217,7 +213,7 @@ export function BudgetForecast() {
                                 <Area
                                     type="monotone"
                                     dataKey="income"
-                                    stroke="#22c55e"
+                                    stroke={chartColors.gain}
                                     fillOpacity={1}
                                     fill="url(#colorIncome)"
                                     name="Income"
@@ -225,7 +221,7 @@ export function BudgetForecast() {
                                 <Area
                                     type="monotone"
                                     dataKey="expenses"
-                                    stroke="#ef4444"
+                                    stroke={chartColors.loss}
                                     fillOpacity={1}
                                     fill="url(#colorExpenses)"
                                     name="Expenses"

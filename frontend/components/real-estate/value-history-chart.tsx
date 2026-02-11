@@ -20,6 +20,7 @@ import {
 } from "recharts"
 import { getPropertyValueHistory, PropertyValueHistoryPoint } from "@/lib/api"
 import { useSettings } from "@/lib/settings-context"
+import { tooltipContentStyle, defaultAxisProps, gridProps } from "@/lib/chart-theme"
 
 type ValueHistoryChartProps = {
     propertyId: number
@@ -92,27 +93,20 @@ export function ValueHistoryChart({
                                     </defs>
                                     <XAxis
                                         dataKey="date"
+                                        {...defaultAxisProps}
                                         tickFormatter={formatDate}
-                                        tick={{ fontSize: 12 }}
-                                        tickLine={false}
-                                        axisLine={false}
+                                        dy={8}
                                     />
                                     <YAxis
+                                        {...defaultAxisProps}
                                         tickFormatter={formatCompactCurrency}
-                                        tick={{ fontSize: 12 }}
-                                        tickLine={false}
-                                        axisLine={false}
                                         width={60}
+                                        dx={-5}
                                     />
                                     <Tooltip
                                         labelFormatter={(label) => formatDate(String(label))}
                                         formatter={(value) => [formatCurrency(Number(value)), "Estimated Value"]}
-                                        contentStyle={{
-                                            backgroundColor: "hsl(var(--card))",
-                                            border: "1px solid hsl(var(--border))",
-                                            borderRadius: "8px",
-                                            fontSize: "13px",
-                                        }}
+                                        contentStyle={tooltipContentStyle}
                                     />
                                     {purchasePrice > 0 && (
                                         <ReferenceLine
