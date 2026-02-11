@@ -82,12 +82,12 @@ export function CashFlowExplorer({ data, retirementAge }: CashFlowExplorerProps)
                         />
                         {/* Retirement marker */}
                         <div
-                            className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-emerald-500"
+                            className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-gain"
                             style={{ left: `${((retirementAge - minAge) / (maxAge - minAge)) * 100}%` }}
                         />
                     </div>
                     <div className="flex justify-center">
-                        <span className="text-xs text-emerald-500">Retirement at {retirementAge}</span>
+                        <span className="text-xs text-gain">Retirement at {retirementAge}</span>
                     </div>
                 </div>
 
@@ -95,12 +95,12 @@ export function CashFlowExplorer({ data, retirementAge }: CashFlowExplorerProps)
                 <div className="grid md:grid-cols-2 gap-6">
                     {/* Inflows */}
                     <div className="space-y-3">
-                        <h4 className="font-semibold text-sm text-emerald-500">Inflows</h4>
+                        <h4 className="font-semibold text-sm text-gain">Inflows</h4>
                         <div className="space-y-2">
                             {inflows.map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center p-2 bg-emerald-500/10 rounded">
+                                <div key={idx} className="flex justify-between items-center p-2 bg-gain/10 rounded">
                                     <span className="text-sm">{item.label}</span>
-                                    <span className="font-mono text-sm font-medium text-emerald-500">
+                                    <span className="font-mono text-sm font-medium text-gain">
                                         +{formatCurrency(item.value)}
                                     </span>
                                 </div>
@@ -109,9 +109,9 @@ export function CashFlowExplorer({ data, retirementAge }: CashFlowExplorerProps)
                                 <div className="p-2 text-sm text-muted-foreground">No income sources</div>
                             )}
                         </div>
-                        <div className="flex justify-between items-center p-2 bg-emerald-500/20 rounded font-semibold">
+                        <div className="flex justify-between items-center p-2 bg-gain/20 rounded font-semibold">
                             <span className="text-sm">Total Inflow</span>
-                            <span className="font-mono text-sm text-emerald-500">
+                            <span className="font-mono text-sm text-gain">
                                 {formatCurrency(totalInflow)}
                             </span>
                         </div>
@@ -119,20 +119,20 @@ export function CashFlowExplorer({ data, retirementAge }: CashFlowExplorerProps)
 
                     {/* Outflows */}
                     <div className="space-y-3">
-                        <h4 className="font-semibold text-sm text-red-500">Outflows</h4>
+                        <h4 className="font-semibold text-sm text-loss">Outflows</h4>
                         <div className="space-y-2">
                             {outflows.map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center p-2 bg-red-500/10 rounded">
+                                <div key={idx} className="flex justify-between items-center p-2 bg-loss/10 rounded">
                                     <span className="text-sm">{item.label}</span>
-                                    <span className="font-mono text-sm font-medium text-red-500">
+                                    <span className="font-mono text-sm font-medium text-loss">
                                         -{formatCurrency(item.value)}
                                     </span>
                                 </div>
                             ))}
                         </div>
-                        <div className="flex justify-between items-center p-2 bg-red-500/20 rounded font-semibold">
+                        <div className="flex justify-between items-center p-2 bg-loss/20 rounded font-semibold">
                             <span className="text-sm">Total Outflow</span>
-                            <span className="font-mono text-sm text-red-500">
+                            <span className="font-mono text-sm text-loss">
                                 {formatCurrency(totalOutflow)}
                             </span>
                         </div>
@@ -143,21 +143,21 @@ export function CashFlowExplorer({ data, retirementAge }: CashFlowExplorerProps)
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
                     <div className="text-center">
                         <p className="text-xs text-muted-foreground">Total Inflow</p>
-                        <p className="font-semibold text-emerald-500">{formatCurrency(totalInflow)}</p>
+                        <p className="font-semibold text-gain">{formatCurrency(totalInflow)}</p>
                     </div>
                     <div className="text-center">
                         <p className="text-xs text-muted-foreground">Tax Paid</p>
-                        <p className="font-semibold text-red-500">{formatCurrency(selectedPoint?.taxPaid || 0)}</p>
+                        <p className="font-semibold text-loss">{formatCurrency(selectedPoint?.taxPaid || 0)}</p>
                     </div>
                     <div className="text-center">
                         <p className="text-xs text-muted-foreground">Net Income</p>
-                        <p className={`font-semibold ${netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        <p className={`font-semibold ${netCashFlow >= 0 ? 'text-gain' : 'text-loss'}`}>
                             {formatCurrency(netCashFlow)}
                         </p>
                     </div>
                     <div className="text-center">
                         <p className="text-xs text-muted-foreground">{isRetired ? 'Shortfall' : 'Savings'}</p>
-                        <p className={`font-semibold ${isRetired ? (selectedPoint?.shortfall > 0 ? 'text-red-500' : 'text-emerald-500') : 'text-blue-500'}`}>
+                        <p className={`font-semibold ${isRetired ? (selectedPoint?.shortfall > 0 ? 'text-loss' : 'text-gain') : 'text-info'}`}>
                             {isRetired
                                 ? (selectedPoint?.shortfall > 0 ? formatCurrency(selectedPoint.shortfall) : '$0')
                                 : formatCurrency(savings)
@@ -177,7 +177,7 @@ export function CashFlowExplorer({ data, retirementAge }: CashFlowExplorerProps)
                                 Debt: {formatCurrency(selectedPoint?.totalLiabilities || 0)}
                             </p>
                         </div>
-                        <div className={`text-2xl font-bold ${(selectedPoint?.netWorth || 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        <div className={`text-2xl font-bold ${(selectedPoint?.netWorth || 0) >= 0 ? 'text-gain' : 'text-loss'}`}>
                             {formatCurrency(selectedPoint?.netWorth || 0)}
                         </div>
                     </div>

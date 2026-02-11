@@ -55,7 +55,7 @@ export function RetirementSummary({ data, config }: RetirementSummaryProps) {
                         <Wallet className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className={`text-2xl font-bold ${worthAtRetirement < 0 ? "text-red-500" : ""}`}>
+                        <div className={`text-2xl font-bold ${worthAtRetirement < 0 ? "text-loss" : ""}`}>
                             {formatCompactCurrency(worthAtRetirement)}
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -70,7 +70,7 @@ export function RetirementSummary({ data, config }: RetirementSummaryProps) {
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className={`text-2xl font-bold ${endOfLifeWorth < 0 ? "text-red-500" : "text-emerald-500"}`}>
+                        <div className={`text-2xl font-bold ${endOfLifeWorth < 0 ? "text-loss" : "text-gain"}`}>
                             {formatCompactCurrency(endOfLifeWorth)}
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -85,7 +85,7 @@ export function RetirementSummary({ data, config }: RetirementSummaryProps) {
                         <Clock className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className={`text-2xl font-bold ${runOutAge ? "text-orange-500" : "text-emerald-500"}`}>
+                        <div className={`text-2xl font-bold ${runOutAge ? "text-warning" : "text-gain"}`}>
                             {runOutAge ? `Depleted at ${runOutAge}` : "Lifetime"}
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -110,11 +110,11 @@ export function RetirementSummary({ data, config }: RetirementSummaryProps) {
 
             {/* Alert for Shortfall */}
             {hasShortfall && (
-                <Card className="border-red-500/50 bg-red-500/10">
+                <Card className="border-destructive/50 bg-destructive/10">
                     <CardContent className="flex items-center gap-4 py-4">
-                        <AlertTriangle className="h-8 w-8 text-red-500" />
+                        <AlertTriangle className="h-8 w-8 text-loss" />
                         <div>
-                            <p className="font-semibold text-red-500">Funding Shortfall Detected</p>
+                            <p className="font-semibold text-loss">Funding Shortfall Detected</p>
                             <p className="text-sm text-muted-foreground">
                                 Maximum shortfall of {formatCompactCurrency(maxShortfall)}. Consider adjusting expenses or retirement age.
                             </p>

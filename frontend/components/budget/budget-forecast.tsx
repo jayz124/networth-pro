@@ -104,10 +104,10 @@ export function BudgetForecast() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Projected Income</CardTitle>
-                        <ArrowUpRight className="h-4 w-4 text-green-600" />
+                        <ArrowUpRight className="h-4 w-4 text-gain" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-green-600">
+                        <div className="text-2xl font-bold text-gain">
                             {formatCurrency(totalIncome)}
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -118,10 +118,10 @@ export function BudgetForecast() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Projected Expenses</CardTitle>
-                        <ArrowDownRight className="h-4 w-4 text-red-600" />
+                        <ArrowDownRight className="h-4 w-4 text-loss" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-red-600">
+                        <div className="text-2xl font-bold text-loss">
                             {formatCurrency(totalExpenses)}
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -133,13 +133,13 @@ export function BudgetForecast() {
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Projected Net</CardTitle>
                         {totalNet >= 0 ? (
-                            <TrendingUp className="h-4 w-4 text-green-600" />
+                            <TrendingUp className="h-4 w-4 text-gain" />
                         ) : (
-                            <TrendingDown className="h-4 w-4 text-red-600" />
+                            <TrendingDown className="h-4 w-4 text-loss" />
                         )}
                     </CardHeader>
                     <CardContent>
-                        <div className={`text-2xl font-bold ${totalNet >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        <div className={`text-2xl font-bold ${totalNet >= 0 ? "text-gain" : "text-loss"}`}>
                             {formatCurrency(totalNet)}
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -257,9 +257,9 @@ export function BudgetForecast() {
                                 >
                                     <div className="flex items-center gap-3">
                                         {t.amount >= 0 ? (
-                                            <ArrowUpRight className="h-4 w-4 text-green-600" />
+                                            <ArrowUpRight className="h-4 w-4 text-gain" />
                                         ) : (
-                                            <ArrowDownRight className="h-4 w-4 text-red-600" />
+                                            <ArrowDownRight className="h-4 w-4 text-loss" />
                                         )}
                                         <div>
                                             <p className="font-medium">{t.description}</p>
@@ -270,7 +270,7 @@ export function BudgetForecast() {
                                     </div>
                                     <span
                                         className={`font-medium ${
-                                            t.amount >= 0 ? "text-green-600" : "text-red-600"
+                                            t.amount >= 0 ? "text-gain" : "text-loss"
                                         }`}
                                     >
                                         {formatCurrency(t.amount)}

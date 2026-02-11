@@ -16,13 +16,13 @@ export default function AccountsPage() {
 
             <div className="grid gap-6 md:grid-cols-2">
                 {/* Integration Card */}
-                <Card className="border-emerald-500/20 shadow-sm relative overflow-hidden">
+                <Card className="border-success/20 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <ShieldCheck className="w-24 h-24 text-emerald-500" />
+                        <ShieldCheck className="w-24 h-24 text-success" />
                     </div>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                            <ShieldCheck className="w-5 h-5 text-success" />
                             Security First
                         </CardTitle>
                         <CardDescription>
@@ -39,7 +39,7 @@ export default function AccountsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <Info className="w-5 h-5 text-blue-500" />
+                            <Info className="w-5 h-5 text-info" />
                             Supported Institutions
                         </CardTitle>
                         <CardDescription>

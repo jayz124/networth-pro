@@ -27,11 +27,11 @@ export type Holding = {
 const getAssetIcon = (type: string) => {
     switch (type.toLowerCase()) {
         case 'crypto':
-            return <Bitcoin className="h-4 w-4 text-amber-500" />
+            return <Bitcoin className="h-4 w-4 text-warning" />
         case 'stock':
-            return <LineChart className="h-4 w-4 text-blue-500" />
+            return <LineChart className="h-4 w-4 text-info" />
         case 'etf':
-            return <Coins className="h-4 w-4 text-violet-500" />
+            return <Coins className="h-4 w-4 text-accent-foreground" />
         case 'real estate':
         case 'reit':
             return <Building className="h-4 w-4 text-success" />

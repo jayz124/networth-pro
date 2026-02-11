@@ -86,8 +86,8 @@ export function RetirementChart({ data, retirementAge }: RetirementChartProps) {
                         <CardTitle>Net Worth Projection</CardTitle>
                         <CardDescription>
                             {runOutAge
-                                ? <span className="text-red-500 font-semibold">Projected to run out of money at age {runOutAge}</span>
-                                : <span className="text-emerald-500 font-semibold">Assets sustain through life expectancy</span>
+                                ? <span className="text-destructive font-semibold">Projected to run out of money at age {runOutAge}</span>
+                                : <span className="text-success font-semibold">Assets sustain through life expectancy</span>
                             }
                         </CardDescription>
                     </div>

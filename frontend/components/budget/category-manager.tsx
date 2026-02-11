@@ -224,7 +224,7 @@ export function CategoryManager({ summary }: CategoryManagerProps) {
                                                                 budgetPercent && budgetPercent > 100
                                                                     ? "text-destructive"
                                                                     : budgetPercent && budgetPercent > 80
-                                                                    ? "text-yellow-600"
+                                                                    ? "text-warning"
                                                                     : "text-muted-foreground"
                                                             }>
                                                                 {budgetPercent?.toFixed(0)}%

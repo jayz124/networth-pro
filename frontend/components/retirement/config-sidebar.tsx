@@ -240,7 +240,7 @@ export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
                                     value={[config.retirementAge]}
                                     min={config.currentAge + 1} max={90} step={1}
                                     onValueChange={(vals) => updateConfig("retirementAge", vals[0])}
-                                    className="accent-emerald-500"
+                                    className="accent-success"
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -261,7 +261,7 @@ export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
                     <AccordionItem value="assets" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <Wallet className="h-4 w-4 text-emerald-500" />
+                                <Wallet className="h-4 w-4 text-success" />
                                 <span className="font-medium">Assets</span>
                             </div>
                         </AccordionTrigger>
@@ -392,7 +392,7 @@ export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
                     <AccordionItem value="liabilities" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <CreditCard className="h-4 w-4 text-red-500" />
+                                <CreditCard className="h-4 w-4 text-loss" />
                                 <span className="font-medium">Liabilities</span>
                             </div>
                         </AccordionTrigger>
@@ -471,7 +471,7 @@ export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
                     <AccordionItem value="cashflow" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <ArrowLeftRight className="h-4 w-4 text-blue-500" />
+                                <ArrowLeftRight className="h-4 w-4 text-info" />
                                 <span className="font-medium">Cash Flow</span>
                             </div>
                         </AccordionTrigger>
@@ -498,14 +498,14 @@ export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
                                 <div className="bg-muted/50 rounded-lg p-3 space-y-2">
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm">Net Cash Flow</span>
-                                        <span className={`font-semibold ${netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                        <span className={`font-semibold ${netCashFlow >= 0 ? 'text-gain' : 'text-loss'}`}>
                                             {netCashFlow >= 0 ? '+' : ''}{settings.currency.symbol}{formatCurrency(netCashFlow)}
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted-foreground">
                                         Allocate this surplus to your savings accounts below:
                                     </div>
-                                    <span className={`text-xs px-2 py-0.5 rounded-full ${isFullyAllocated ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${isFullyAllocated ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'}`}>
                                         {isFullyAllocated ? 'Fully Allocated' : 'Not Fully Allocated'}
                                     </span>
                                 </div>
@@ -603,7 +603,7 @@ export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
                     <AccordionItem value="inheritance" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <Gift className="h-4 w-4 text-purple-500" />
+                                <Gift className="h-4 w-4 text-accent" />
                                 <span className="font-medium">Inheritance Flows</span>
                             </div>
                         </AccordionTrigger>
@@ -705,7 +705,7 @@ export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
                     <AccordionItem value="market" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4 text-cyan-500" />
+                                <TrendingUp className="h-4 w-4 text-info" />
                                 <span className="font-medium">Market Assumptions</span>
                             </div>
                         </AccordionTrigger>
@@ -767,7 +767,7 @@ export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
                     <AccordionItem value="tax" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <Receipt className="h-4 w-4 text-amber-500" />
+                                <Receipt className="h-4 w-4 text-warning" />
                                 <span className="font-medium">Tax Strategy</span>
                             </div>
                         </AccordionTrigger>
@@ -848,7 +848,7 @@ export function ConfigSidebar({ config, onChange }: ConfigSidebarProps) {
                     <AccordionItem value="risk" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                                <AlertTriangle className="h-4 w-4 text-warning" />
                                 <span className="font-medium">Risk & Stress Testing</span>
                             </div>
                         </AccordionTrigger>

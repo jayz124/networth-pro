@@ -38,11 +38,11 @@ const getPropertyIcon = (type: string) => {
         case 'residential':
             return <Home className="h-5 w-5 text-success" />
         case 'commercial':
-            return <Building className="h-5 w-5 text-blue-500" />
+            return <Building className="h-5 w-5 text-info" />
         case 'land':
-            return <TreePine className="h-5 w-5 text-amber-500" />
+            return <TreePine className="h-5 w-5 text-warning" />
         case 'rental':
-            return <Warehouse className="h-5 w-5 text-violet-500" />
+            return <Warehouse className="h-5 w-5 text-accent" />
         default:
             return <Building2 className="h-5 w-5 text-success" />
     }

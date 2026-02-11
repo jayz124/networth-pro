@@ -109,7 +109,7 @@ export function BudgetSummary({
                     <CardTitle className="text-sm font-medium">Savings Rate</CardTitle>
                     <div className={`text-xs font-medium px-2 py-0.5 rounded ${
                         savingsRate >= 20 ? "bg-success/10 text-success" :
-                        savingsRate >= 10 ? "bg-yellow-500/10 text-yellow-600" :
+                        savingsRate >= 10 ? "bg-warning/10 text-warning" :
                         "bg-destructive/10 text-destructive"
                     }`}>
                         {savingsRate >= 20 ? "Great" : savingsRate >= 10 ? "Good" : "Low"}

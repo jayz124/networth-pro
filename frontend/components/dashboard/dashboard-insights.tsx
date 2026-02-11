@@ -39,17 +39,17 @@ export function DashboardInsightsCard() {
     const getInsightIcon = (type: string) => {
         switch (type) {
             case "warning":
-                return <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                return <AlertTriangle className="h-4 w-4 text-warning" />
             case "tip":
-                return <Lightbulb className="h-4 w-4 text-blue-500" />
+                return <Lightbulb className="h-4 w-4 text-info" />
             case "positive":
                 return <TrendingUp className="h-4 w-4 text-success" />
             case "anomaly":
-                return <Activity className="h-4 w-4 text-purple-500" />
+                return <Activity className="h-4 w-4 text-accent" />
             case "milestone":
-                return <Trophy className="h-4 w-4 text-amber-500" />
+                return <Trophy className="h-4 w-4 text-warning" />
             case "trend":
-                return <TrendingUp className="h-4 w-4 text-teal-500" />
+                return <TrendingUp className="h-4 w-4 text-info" />
             default:
                 return <Sparkles className="h-4 w-4" />
         }
@@ -58,17 +58,17 @@ export function DashboardInsightsCard() {
     const getInsightColor = (type: string) => {
         switch (type) {
             case "warning":
-                return "border-yellow-500/30 bg-yellow-500/5"
+                return "border-warning/30 bg-warning/5"
             case "tip":
-                return "border-blue-500/30 bg-blue-500/5"
+                return "border-info/30 bg-info/5"
             case "positive":
                 return "border-success/30 bg-success/5"
             case "anomaly":
-                return "border-purple-500/30 bg-purple-500/5"
+                return "border-accent/30 bg-accent/5"
             case "milestone":
-                return "border-amber-500/30 bg-amber-500/5"
+                return "border-warning/30 bg-warning/5"
             case "trend":
-                return "border-teal-500/30 bg-teal-500/5"
+                return "border-info/30 bg-info/5"
             default:
                 return "border-border"
         }

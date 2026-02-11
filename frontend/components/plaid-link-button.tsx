@@ -66,7 +66,7 @@ export function PlaidLinkButton({ onSuccess }: PlaidLinkButtonProps) {
 
     if (isLinked) {
         return (
-            <Button variant="outline" disabled className="w-full sm:w-auto border-emerald-500/50 bg-emerald-500/10 text-emerald-500">
+            <Button variant="outline" disabled className="w-full sm:w-auto border-success/50 bg-success/10 text-success">
                 <Check className="mr-2 h-4 w-4" />
                 Account Linked
             </Button>

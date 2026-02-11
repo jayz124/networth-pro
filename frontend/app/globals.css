@@ -33,8 +33,14 @@
   --color-success-foreground: hsl(var(--success-foreground));
   --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(var(--info-foreground));
   --color-gold: hsl(var(--gold));
   --color-gold-foreground: hsl(var(--gold-foreground));
+  --color-gain: hsl(var(--gain));
+  --color-gain-foreground: hsl(var(--gain-foreground));
+  --color-loss: hsl(var(--loss));
+  --color-loss-foreground: hsl(var(--loss-foreground));
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -116,6 +122,12 @@
   --success-foreground: 0 0% 100%;
   --warning: 38 92% 50%;
   --warning-foreground: 222 47% 11%;
+  --info: 214 76% 51%;
+  --info-foreground: 0 0% 100%;
+  --gain: 158 64% 40%;
+  --gain-foreground: 0 0% 100%;
+  --loss: 0 72% 51%;
+  --loss-foreground: 0 0% 100%;
   --gold: 38 92% 50%;
   --gold-foreground: 222 47% 11%;
 
@@ -166,6 +178,12 @@
   --success-foreground: 222 47% 6%;
   --warning: 38 92% 50%;
   --warning-foreground: 222 47% 6%;
+  --info: 214 76% 60%;
+  --info-foreground: 222 47% 6%;
+  --gain: 158 64% 52%;
+  --gain-foreground: 222 47% 6%;
+  --loss: 0 72% 63%;
+  --loss-foreground: 222 47% 6%;
   --gold: 38 92% 50%;
   --gold-foreground: 222 47% 6%;
 }
@@ -211,15 +229,29 @@
 
   /* Gain/Loss colors */
   .text-gain {
-    color: hsl(var(--success));
+    color: hsl(var(--gain));
   }
   .text-loss {
-    color: hsl(var(--destructive));
+    color: hsl(var(--loss));
+  }
+  .bg-gain {
+    background-color: hsl(var(--gain));
+  }
+  .bg-loss {
+    background-color: hsl(var(--loss));
   }
 
   /* Gold accent text */
   .text-gold {
     color: hsl(var(--gold));
+  }
+
+  /* Info colors */
+  .text-info {
+    color: hsl(var(--info));
+  }
+  .bg-info {
+    background-color: hsl(var(--info));
   }
 
   /* Glassmorphism card effect */

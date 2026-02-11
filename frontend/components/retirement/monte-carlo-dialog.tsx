@@ -73,7 +73,7 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                             {isRunning ? "Simulating..." : "Start Simulation"}
                         </Button>
                         {config.stressTest.enabled && (
-                            <p className="text-xs text-amber-500">
+                            <p className="text-xs text-warning">
                                 Note: Stress test scenario will be applied to all simulations.
                             </p>
                         )}
@@ -86,7 +86,7 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="p-4 bg-muted/50 rounded-lg">
                                 <p className="text-sm font-medium">Success Rate</p>
-                                <p className={`text-3xl font-bold ${result.successRate >= 90 ? "text-emerald-500" : result.successRate >= 70 ? "text-amber-500" : "text-red-500"}`}>
+                                <p className={`text-3xl font-bold ${result.successRate >= 90 ? "text-success" : result.successRate >= 70 ? "text-warning" : "text-destructive"}`}>
                                     {result.successRate.toFixed(1)}%
                                 </p>
                                 <p className="text-xs text-muted-foreground">
@@ -110,19 +110,19 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                         <div className="grid grid-cols-3 gap-4 text-center">
                             <div>
                                 <p className="text-xs text-muted-foreground">Downside (10th)</p>
-                                <p className="font-semibold text-red-500">
+                                <p className="font-semibold text-loss">
                                     {formatCompactCurrency(result.percentile10[result.percentile10.length - 1]?.netWorth || 0)}
                                 </p>
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground">Median (50th)</p>
-                                <p className="font-semibold text-blue-500">
+                                <p className="font-semibold text-info">
                                     {formatCompactCurrency(result.percentile50[result.percentile50.length - 1]?.netWorth || 0)}
                                 </p>
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground">Upside (90th)</p>
-                                <p className="font-semibold text-emerald-500">
+                                <p className="font-semibold text-gain">
                                     {formatCompactCurrency(result.percentile90[result.percentile90.length - 1]?.netWorth || 0)}
                                 </p>
                             </div>
@@ -211,15 +211,15 @@ export function MonteCarloDialog({ config }: { config: RetirementConfig }) {
                         {/* Legend */}
                         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs">
                             <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-sm bg-emerald-500/30" />
+                                <div className="w-3 h-3 rounded-sm bg-gain/30" />
                                 <span className="text-muted-foreground">Upside (90th percentile)</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-sm bg-blue-500" />
+                                <div className="w-3 h-3 rounded-sm bg-info" />
                                 <span className="text-muted-foreground">Median (50th percentile)</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-sm bg-red-500/50" />
+                                <div className="w-3 h-3 rounded-sm bg-loss/50" />
                                 <span className="text-muted-foreground">Downside (10th percentile)</span>
                             </div>
                         </div>

@@ -34,15 +34,15 @@ type LiabilityCardProps = {
 const getLiabilityIcon = (category: string) => {
     switch (category?.toLowerCase()) {
         case 'credit_card':
-            return <CreditCard className="h-5 w-5 text-rose-500" />
+            return <CreditCard className="h-5 w-5 text-destructive" />
         case 'auto_loan':
-            return <Car className="h-5 w-5 text-orange-500" />
+            return <Car className="h-5 w-5 text-warning" />
         case 'student_loan':
-            return <GraduationCap className="h-5 w-5 text-blue-500" />
+            return <GraduationCap className="h-5 w-5 text-info" />
         case 'mortgage':
-            return <Home className="h-5 w-5 text-violet-500" />
+            return <Home className="h-5 w-5 text-accent" />
         case 'personal_loan':
-            return <Banknote className="h-5 w-5 text-amber-500" />
+            return <Banknote className="h-5 w-5 text-warning" />
         default:
             return <CreditCard className="h-5 w-5 text-destructive" />
     }
@@ -51,15 +51,15 @@ const getLiabilityIcon = (category: string) => {
 const getLiabilityColor = (category: string) => {
     switch (category?.toLowerCase()) {
         case 'credit_card':
-            return 'bg-rose-500/10'
+            return 'bg-destructive/10'
         case 'auto_loan':
-            return 'bg-orange-500/10'
+            return 'bg-warning/10'
         case 'student_loan':
-            return 'bg-blue-500/10'
+            return 'bg-info/10'
         case 'mortgage':
-            return 'bg-violet-500/10'
+            return 'bg-accent/10'
         case 'personal_loan':
-            return 'bg-amber-500/10'
+            return 'bg-warning/10'
         default:
             return 'bg-destructive/10'
     }

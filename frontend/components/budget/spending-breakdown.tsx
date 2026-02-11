@@ -134,7 +134,7 @@ export function SpendingBreakdown({ summary, isLoading }: SpendingBreakdownProps
                                         {budgetPercent !== null && (
                                             <span className={`text-xs ${
                                                 budgetPercent > 100 ? "text-destructive" :
-                                                budgetPercent > 80 ? "text-yellow-600" :
+                                                budgetPercent > 80 ? "text-warning" :
                                                 "text-muted-foreground"
                                             }`}>
                                                 ({budgetPercent.toFixed(0)}%)

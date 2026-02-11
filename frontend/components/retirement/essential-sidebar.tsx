@@ -182,7 +182,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                                     value={[config.retirementAge]}
                                     min={config.currentAge + 1} max={90} step={1}
                                     onValueChange={(vals) => updateConfig("retirementAge", vals[0])}
-                                    className="accent-emerald-500"
+                                    className="accent-success"
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -203,7 +203,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                     <AccordionItem value="investments" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4 text-emerald-500" />
+                                <TrendingUp className="h-4 w-4 text-success" />
                                 <span className="font-medium">Current Investments</span>
                             </div>
                         </AccordionTrigger>
@@ -247,7 +247,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                             <div className="bg-muted/50 rounded-lg p-3">
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Total Investments</span>
-                                    <span className="font-semibold text-emerald-500">
+                                    <span className="font-semibold text-gain">
                                         {settings.currency.symbol}{formatCurrency(totalInvestments)}
                                     </span>
                                 </div>
@@ -259,7 +259,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                     <AccordionItem value="realestate" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <Home className="h-4 w-4 text-blue-500" />
+                                <Home className="h-4 w-4 text-info" />
                                 <span className="font-medium">Real Estate & Debt</span>
                             </div>
                         </AccordionTrigger>
@@ -301,7 +301,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                             <div className="bg-muted/50 rounded-lg p-3">
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Home Equity</span>
-                                    <span className={`font-semibold ${config.primaryHomeValue - config.totalMortgageBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                    <span className={`font-semibold ${config.primaryHomeValue - config.totalMortgageBalance >= 0 ? 'text-gain' : 'text-loss'}`}>
                                         {settings.currency.symbol}{formatCurrency(config.primaryHomeValue - config.totalMortgageBalance)}
                                     </span>
                                 </div>
@@ -313,7 +313,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                     <AccordionItem value="cashflow" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <Wallet className="h-4 w-4 text-purple-500" />
+                                <Wallet className="h-4 w-4 text-accent" />
                                 <span className="font-medium">Annual Cash Flow</span>
                             </div>
                         </AccordionTrigger>
@@ -337,7 +337,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                             <div className="bg-muted/50 rounded-lg p-3">
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Annual Savings</span>
-                                    <span className={`font-semibold ${annualSavings >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                    <span className={`font-semibold ${annualSavings >= 0 ? 'text-gain' : 'text-loss'}`}>
                                         {annualSavings >= 0 ? '+' : ''}{settings.currency.symbol}{formatCurrency(annualSavings)}
                                     </span>
                                 </div>
@@ -356,7 +356,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                     <AccordionItem value="retirement-spending" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <PiggyBank className="h-4 w-4 text-amber-500" />
+                                <PiggyBank className="h-4 w-4 text-warning" />
                                 <span className="font-medium">Retirement Spending</span>
                             </div>
                         </AccordionTrigger>
@@ -402,7 +402,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                     <AccordionItem value="pension" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-cyan-500" />
+                                <Calendar className="h-4 w-4 text-info" />
                                 <span className="font-medium">Pension / Retirement Income</span>
                             </div>
                         </AccordionTrigger>
@@ -436,7 +436,7 @@ export function EssentialSidebar({ config, onChange, syncedFields }: EssentialSi
                     <AccordionItem value="assumptions" className="border rounded-lg px-3">
                         <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-2">
-                                <Settings className="h-4 w-4 text-gray-500" />
+                                <Settings className="h-4 w-4 text-muted-foreground" />
                                 <span className="font-medium">Assumptions</span>
                             </div>
                         </AccordionTrigger>

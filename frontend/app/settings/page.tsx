@@ -309,9 +309,9 @@ export default function SettingsPage() {
                         key={toast.id}
                         className={`
                             flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg animate-in slide-in-from-right
-                            ${toast.type === "success" ? "bg-emerald-500 text-white" : ""}
-                            ${toast.type === "error" ? "bg-red-500 text-white" : ""}
-                            ${toast.type === "info" ? "bg-blue-500 text-white" : ""}
+                            ${toast.type === "success" ? "bg-success text-success-foreground" : ""}
+                            ${toast.type === "error" ? "bg-destructive text-destructive-foreground" : ""}
+                            ${toast.type === "info" ? "bg-info text-info-foreground" : ""}
                         `}
                     >
                         {toast.type === "success" && <CheckCircle2 className="h-4 w-4" />}
@@ -459,7 +459,7 @@ export default function SettingsPage() {
                                                         <span className="flex items-center gap-2">
                                                             <span>{p.name}</span>
                                                             {p.is_configured && (
-                                                                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                                                <CheckCircle2 className="h-3 w-3 text-success" />
                                                             )}
                                                         </span>
                                                     </SelectItem>
@@ -515,7 +515,7 @@ export default function SettingsPage() {
                                             <div className="flex items-center gap-3">
                                                 <div className={`flex h-3 w-3 rounded-full ${
                                                     provider.id === activeProvider && provider.is_configured
-                                                        ? "bg-emerald-500"
+                                                        ? "bg-success"
                                                         : provider.is_configured
                                                         ? "bg-muted-foreground/30"
                                                         : "bg-muted-foreground/10 border border-muted-foreground/20"
@@ -524,7 +524,7 @@ export default function SettingsPage() {
                                                     <div className="flex items-center gap-2">
                                                         <h4 className="font-medium text-sm">{provider.name}</h4>
                                                         {provider.is_configured && (
-                                                            <span className="text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                                                            <span className="text-xs text-success bg-success/10 px-1.5 py-0.5 rounded">
                                                                 Configured
                                                             </span>
                                                         )}
@@ -538,8 +538,8 @@ export default function SettingsPage() {
                                                 {getProviderNote(provider.id) && (
                                                     <span className={`text-xs px-1.5 py-0.5 rounded ${
                                                         provider.id === "gemini" || provider.id === "groq"
-                                                            ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950"
-                                                            : "text-yellow-600 bg-yellow-50 dark:bg-yellow-950"
+                                                            ? "text-success bg-success/10"
+                                                            : "text-warning bg-warning/10"
                                                     }`}>
                                                         {getProviderNote(provider.id)}
                                                     </span>
@@ -623,8 +623,8 @@ export default function SettingsPage() {
                         {/* RentCast API Key */}
                         <div className="p-4 border rounded-lg space-y-4">
                             <div className="flex items-center gap-4">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
-                                    <Home className="h-5 w-5 text-emerald-500" />
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10">
+                                    <Home className="h-5 w-5 text-success" />
                                 </div>
                                 <div className="flex-1">
                                     <h4 className="font-medium">RentCast API Key</h4>
@@ -633,7 +633,7 @@ export default function SettingsPage() {
                                     </p>
                                 </div>
                                 {getRentcastSetting()?.is_set && (
-                                    <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-1 rounded">
+                                    <div className="flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-1 rounded">
                                         <CheckCircle2 className="h-3 w-3" />
                                         Configured
                                     </div>
@@ -718,8 +718,8 @@ export default function SettingsPage() {
                         {/* Export Data */}
                         <div className="flex items-center justify-between p-4 border rounded-lg">
                             <div className="flex items-center gap-4">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
-                                    <Download className="h-5 w-5 text-blue-500" />
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info/10">
+                                    <Download className="h-5 w-5 text-info" />
                                 </div>
                                 <div>
                                     <h4 className="font-medium">Export Data</h4>
@@ -750,8 +750,8 @@ export default function SettingsPage() {
                         {/* Import Data */}
                         <div className="flex items-center justify-between p-4 border rounded-lg">
                             <div className="flex items-center gap-4">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
-                                    <Upload className="h-5 w-5 text-emerald-500" />
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10">
+                                    <Upload className="h-5 w-5 text-success" />
                                 </div>
                                 <div>
                                     <h4 className="font-medium">Import Data</h4>

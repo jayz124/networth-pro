@@ -34,13 +34,13 @@ type AccountCardProps = {
 const getAccountIcon = (type: string) => {
     switch (type.toLowerCase()) {
         case 'checking':
-            return <Building className="h-5 w-5 text-blue-500" />
+            return <Building className="h-5 w-5 text-info" />
         case 'savings':
             return <PiggyBank className="h-5 w-5 text-success" />
         case 'investment':
-            return <TrendingUp className="h-5 w-5 text-violet-500" />
+            return <TrendingUp className="h-5 w-5 text-accent" />
         case 'cash':
-            return <Banknote className="h-5 w-5 text-amber-500" />
+            return <Banknote className="h-5 w-5 text-warning" />
         default:
             return <Wallet className="h-5 w-5 text-accent" />
     }
@@ -49,13 +49,13 @@ const getAccountIcon = (type: string) => {
 const getAccountColor = (type: string) => {
     switch (type.toLowerCase()) {
         case 'checking':
-            return 'bg-blue-500/10'
+            return 'bg-info/10'
         case 'savings':
             return 'bg-success/10'
         case 'investment':
-            return 'bg-violet-500/10'
+            return 'bg-accent/10'
         case 'cash':
-            return 'bg-amber-500/10'
+            return 'bg-warning/10'
         default:
             return 'bg-accent/10'
     }

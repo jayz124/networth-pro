@@ -208,13 +208,13 @@ export function StatementUpload({ categories, onImportComplete }: StatementUploa
     const getFileIcon = (filename: string) => {
         const ext = filename.toLowerCase().split('.').pop()
         if (ext === 'csv' || ext === 'ofx' || ext === 'qfx') {
-            return <FileSpreadsheet className="h-8 w-8 text-green-500" />
+            return <FileSpreadsheet className="h-8 w-8 text-success" />
         }
         if (ext === 'pdf') {
-            return <FileText className="h-8 w-8 text-red-500" />
+            return <FileText className="h-8 w-8 text-destructive" />
         }
         if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext || '')) {
-            return <Image className="h-8 w-8 text-blue-500" />
+            return <Image className="h-8 w-8 text-info" />
         }
         return <FileText className="h-8 w-8 text-muted-foreground" />
     }
@@ -260,7 +260,7 @@ export function StatementUpload({ categories, onImportComplete }: StatementUploa
                             {supportedFormats?.ai_available && ", PDF, and images"}
                         </p>
                         {!supportedFormats?.ai_available && (
-                            <p className="text-xs text-yellow-600 mt-2">
+                            <p className="text-xs text-warning mt-2">
                                 Configure an AI provider in Settings for PDF/image support
                             </p>
                         )}
@@ -311,7 +311,7 @@ export function StatementUpload({ categories, onImportComplete }: StatementUploa
                                     <div className="font-medium text-sm flex items-center gap-2">
                                         {selectedFile?.name}
                                         {aiEnhanced && (
-                                            <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                                            <Badge variant="secondary" className="text-xs bg-info/10 text-info">
                                                 <Sparkles className="h-3 w-3 mr-1" />
                                                 AI Enhanced
                                             </Badge>
@@ -347,8 +347,8 @@ export function StatementUpload({ categories, onImportComplete }: StatementUploa
 
                         {/* Warnings */}
                         {warnings.length > 0 && (
-                            <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                                <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                            <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
+                                <p className="text-xs text-warning">
                                     {warnings.length} warning(s): {warnings[0]}
                                     {warnings.length > 1 && ` (+${warnings.length - 1} more)`}
                                 </p>
@@ -395,7 +395,7 @@ export function StatementUpload({ categories, onImportComplete }: StatementUploa
                                                         )}
                                                     </div>
                                                     {txn.ai_reviewed && (
-                                                        <Sparkles className="h-3 w-3 text-purple-500 flex-shrink-0 mt-0.5" title="AI categorized" />
+                                                        <Sparkles className="h-3 w-3 text-info flex-shrink-0 mt-0.5" aria-label="AI categorized" />
                                                     )}
                                                 </div>
                                             </TableCell>
@@ -424,7 +424,7 @@ export function StatementUpload({ categories, onImportComplete }: StatementUploa
                                                     </SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell className={`text-right font-medium ${txn.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                            <TableCell className={`text-right font-medium ${txn.amount >= 0 ? "text-gain" : "text-loss"}`}>
                                                 {formatCurrency(txn.amount)}
                                             </TableCell>
                                         </TableRow>
@@ -470,7 +470,7 @@ export function StatementUpload({ categories, onImportComplete }: StatementUploa
                 {/* Complete State */}
                 {state === "complete" && (
                     <div className="text-center py-8 space-y-4">
-                        <CheckCircle2 className="h-12 w-12 mx-auto text-green-500" />
+                        <CheckCircle2 className="h-12 w-12 mx-auto text-success" />
                         <div>
                             <p className="text-lg font-medium">Import Complete!</p>
                             <p className="text-sm text-muted-foreground">
