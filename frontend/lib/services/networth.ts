@@ -1,14 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { NetWorth } from '@/lib/api';
+import { convert } from '@/lib/services/fx-service';
 
-/**
- * Currency conversion stub.
- * In a real app, this would query an exchange rate API or table.
- */
-function convertCurrency(amount: number, fromCcy: string, toCcy: string): number {
-    if (fromCcy === toCcy) return amount;
-    // TODO: Implement actual FX conversion
-    return amount;
+async function convertCurrency(amount: number, fromCcy: string, toCcy: string): Promise<number> {
+    return convert(amount, fromCcy, toCcy);
 }
 
 export async function getNetWorth(): Promise<NetWorth> {
@@ -35,7 +30,7 @@ export async function getNetWorth(): Promise<NetWorth> {
         // specific logic: if snapshot exists use it, else use helper field or 0
         const snapshot = account.balance_snapshots[0];
         const rawBalance = snapshot ? snapshot.amount : (account.current_balance || 0);
-        const balance = convertCurrency(rawBalance, account.currency, baseCcy);
+        const balance = await convertCurrency(rawBalance, account.currency, baseCcy);
 
         totalCash += balance;
         assetBreakdown.push({
@@ -59,7 +54,7 @@ export async function getNetWorth(): Promise<NetWorth> {
         let portfolioValue = 0;
         for (const holding of portfolio.holdings) {
             const holdingValue = holding.current_value || 0;
-            const converted = convertCurrency(holdingValue, holding.currency, baseCcy);
+            const converted = await convertCurrency(holdingValue, holding.currency, baseCcy);
             portfolioValue += converted;
         }
         totalInvestments += portfolioValue;
@@ -77,7 +72,7 @@ export async function getNetWorth(): Promise<NetWorth> {
     let totalRealEstate = 0;
 
     for (const prop of properties) {
-        const value = convertCurrency(prop.current_value, prop.currency, baseCcy);
+        const value = await convertCurrency(prop.current_value, prop.currency, baseCcy);
         totalRealEstate += value;
 
         assetBreakdown.push({
@@ -110,7 +105,7 @@ export async function getNetWorth(): Promise<NetWorth> {
     // Mortgages
     for (const m of mortgages) {
         const mCcy = m.property?.currency || 'USD';
-        const balance = convertCurrency(m.current_balance, mCcy, baseCcy);
+        const balance = await convertCurrency(m.current_balance, mCcy, baseCcy);
         totalLiabilities += balance;
 
         liabilityBreakdown.push({
@@ -124,7 +119,7 @@ export async function getNetWorth(): Promise<NetWorth> {
     for (const liab of liabilities) {
         const snapshot = liab.balance_snapshots[0];
         const rawBalance = snapshot ? snapshot.amount : (liab.current_balance || 0);
-        const balance = convertCurrency(rawBalance, liab.currency, baseCcy);
+        const balance = await convertCurrency(rawBalance, liab.currency, baseCcy);
         totalLiabilities += balance;
 
         liabilityBreakdown.push({
@@ -145,8 +140,11 @@ export async function getNetWorth(): Promise<NetWorth> {
             where: { date: today },
         });
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const totalMortgages = mortgages.reduce((sum: number, m: any) => sum + convertCurrency(m.current_balance, m.property?.currency || 'USD', baseCcy), 0);
+        // Calculate total mortgages for snapshot breakdown
+        let totalMortgages = 0;
+        for (const m of mortgages) {
+            totalMortgages += await convertCurrency(m.current_balance, m.property?.currency || 'USD', baseCcy);
+        }
 
         const data = {
             date: today,
@@ -201,12 +199,6 @@ export async function getNetWorthHistory() {
         net_worth: snap.net_worth,
     }));
 
-    // Append today? Snapshots might already include today if getNetWorth was called.
-    // The Python code appended today manually. 
-    // Here, if we just ran getNetWorth logic (which upserts today), `findMany` will include it.
-    // So we don't need to manually append it if we assume the dashboard calls `networth` (which updates snapshot) before `history`.
-    // Or we can just calculate it live if it's missing.
-
     return history;
 }
 
@@ -226,7 +218,7 @@ export async function getNetWorthBreakdown() {
     const cashItems = [];
 
     for (const account of accounts) {
-        const balance = convertCurrency(account.balance_snapshots[0]?.amount ?? account.current_balance ?? 0, account.currency, baseCcy);
+        const balance = await convertCurrency(account.balance_snapshots[0]?.amount ?? account.current_balance ?? 0, account.currency, baseCcy);
         totalCash += balance;
         cashItems.push({
             id: account.id,
@@ -245,7 +237,7 @@ export async function getNetWorthBreakdown() {
     for (const p of portfolios) {
         let pValue = 0;
         for (const h of p.holdings) {
-            pValue += convertCurrency(h.current_value ?? 0, h.currency, baseCcy);
+            pValue += await convertCurrency(h.current_value ?? 0, h.currency, baseCcy);
         }
         totalInvestments += pValue;
         investmentItems.push({
@@ -263,13 +255,13 @@ export async function getNetWorthBreakdown() {
     const realEstateItems = [];
 
     for (const p of properties) {
-        const value = convertCurrency(p.current_value, p.currency, baseCcy);
+        const value = await convertCurrency(p.current_value, p.currency, baseCcy);
         totalRealEstate += value;
 
         let mortgageBalance = 0;
         for (const m of p.mortgages) {
             if (m.is_active) {
-                mortgageBalance += convertCurrency(m.current_balance, p.currency, baseCcy);
+                mortgageBalance += await convertCurrency(m.current_balance, p.currency, baseCcy);
             }
         }
         totalMortgages += mortgageBalance;
@@ -299,7 +291,7 @@ export async function getNetWorthBreakdown() {
                 liabilityItems.push({
                     id: `mortgage_${m.id}`,
                     name: `Mortgage - ${p.name}`,
-                    balance: convertCurrency(m.current_balance, p.currency, baseCcy),
+                    balance: await convertCurrency(m.current_balance, p.currency, baseCcy),
                     category: 'mortgage',
                 });
             }
@@ -308,7 +300,7 @@ export async function getNetWorthBreakdown() {
 
     // Add other liabilities
     for (const l of liabilities) {
-        const balance = convertCurrency(l.balance_snapshots[0]?.amount ?? l.current_balance ?? 0, l.currency, baseCcy);
+        const balance = await convertCurrency(l.balance_snapshots[0]?.amount ?? l.current_balance ?? 0, l.currency, baseCcy);
         totalLiabilities += balance;
         liabilityItems.push({
             id: l.id,
