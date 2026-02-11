@@ -1,0 +1,286 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+
+}
+
+model Account {
+  id              Int               @id @default(autoincrement())
+  name            String            @unique
+  institution     String?
+  type            String            // checking, savings, investment, cash
+  currency        String            @default("USD")
+  tags            String?
+  current_balance Float?            @default(0) // Helper field, real source of truth is snapshots/transactions
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+
+  balance_snapshots BalanceSnapshot[]
+  transactions      Transaction[]
+
+  @@index([name])
+}
+
+model Liability {
+  id              Int               @id @default(autoincrement())
+  name            String            @unique
+  category        String?           // credit_card, student_loan, auto_loan, personal_loan, other
+  currency        String            @default("USD")
+  tags            String?
+  current_balance Float?            @default(0)
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+
+  balance_snapshots BalanceSnapshot[]
+
+  @@index([name])
+}
+
+model Portfolio {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  currency    String   @default("USD")
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  holdings PortfolioHolding[]
+
+  @@index([name])
+}
+
+model PortfolioHolding {
+  id             Int       @id @default(autoincrement())
+  portfolio_id   Int
+  portfolio      Portfolio @relation(fields: [portfolio_id], references: [id], onDelete: Cascade)
+  ticker         String
+  asset_type     String
+  quantity       Float
+  purchase_price Float?
+  purchase_date  String?   // ISO format: YYYY-MM-DD
+  currency       String    @default("USD")
+  current_price  Float?
+  current_value  Float?    // Calculated (qty * price)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+}
+
+model BalanceSnapshot {
+  id           Int      @id @default(autoincrement())
+  date         DateTime 
+  
+  account_id   Int?
+  account      Account? @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  
+  liability_id Int?
+  liability    Liability? @relation(fields: [liability_id], references: [id], onDelete: Cascade)
+
+  amount       Float
+  currency     String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([date])
+  @@index([account_id, date])
+  @@index([liability_id, date])
+}
+
+model SecurityInfo {
+  id           Int      @id @default(autoincrement())
+  ticker       String   @unique
+  name         String
+  asset_type   String
+  exchange     String?
+  currency     String   @default("USD")
+  sector       String?
+  last_updated DateTime @default(now())
+
+  @@index([ticker])
+}
+
+model PriceCache {
+  id             Int      @id @default(autoincrement())
+  ticker         String
+  current_price  Float
+  previous_close Float?
+  change_percent Float?
+  fetched_at     DateTime @default(now())
+
+  @@index([ticker])
+}
+
+model Property {
+  id                   Int      @id @default(autoincrement())
+  name                 String
+  address              String
+  property_type        String   // residential, commercial, rental, land
+  purchase_price       Float
+  purchase_date        String?  // ISO format: YYYY-MM-DD
+  current_value        Float
+  currency             String   @default("USD")
+  provider_property_id String?
+  valuation_provider   String?  // "rentcast" or null
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  mortgages            Mortgage[]
+  valuations           PropertyValuationCache[]
+  value_history        PropertyValueHistory[]
+}
+
+model PropertyValuationCache {
+  id                     Int      @id @default(autoincrement())
+  property_id            Int
+  property               Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  provider               String   @default("rentcast")
+  estimated_value        Float?
+  estimated_rent_monthly Float?
+  confidence             String?
+  value_range_low        Float?
+  value_range_high       Float?
+  rent_range_low         Float?
+  rent_range_high        Float?
+  bedrooms               Int?
+  bathrooms              Float?
+  square_footage         Int?
+  year_built             Int?
+  currency               String   @default("USD")
+  fetched_at             DateTime @default(now())
+
+  @@index([property_id])
+}
+
+model PropertyValueHistory {
+  id              Int      @id @default(autoincrement())
+  property_id     Int
+  property        Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  date            String   // ISO format: YYYY-MM-DD
+  estimated_value Float
+  source          String   @default("rentcast")
+  currency        String   @default("USD")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@unique([property_id, date, source])
+  @@index([date])
+}
+
+model Mortgage {
+  id                 Int      @id @default(autoincrement())
+  property_id        Int
+  property           Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  lender             String?
+  original_principal Float
+  current_balance    Float
+  interest_rate      Float
+  monthly_payment    Float
+  term_years         Int
+  is_active          Boolean  @default(true)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+}
+
+model RetirementPlan {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  mode        String   // "pro" or "essential"
+  config_json String
+  is_active   Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([name])
+}
+
+model BudgetCategory {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  icon         String?
+  color        String?
+  budget_limit Float?
+  is_income    Boolean  @default(false)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  transactions  Transaction[]
+  subscriptions Subscription[]
+
+  @@index([name])
+}
+
+model Transaction {
+  id                   Int             @id @default(autoincrement())
+  date                 DateTime
+  description          String
+  amount               Float
+  category_id          Int?
+  category             BudgetCategory? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  account_id           Int?
+  account              Account?        @relation(fields: [account_id], references: [id], onDelete: SetNull)
+  is_recurring         Boolean         @default(false)
+  recurrence_frequency String?         // daily, weekly, bi-weekly, monthly, yearly
+  merchant             String?
+  notes                String?
+  ai_categorized       Boolean         @default(false)
+  created_at           DateTime        @default(now())
+  updated_at           DateTime        @updatedAt
+
+  @@index([date])
+}
+
+model Subscription {
+  id                Int             @id @default(autoincrement())
+  name              String
+  amount            Float
+  frequency         String          // monthly, yearly
+  category_id       Int?
+  category          BudgetCategory? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  next_billing_date DateTime?
+  is_active         Boolean         @default(true)
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+}
+
+model NetWorthSnapshot {
+  id                Int      @id @default(autoincrement())
+  date              String   @unique // YYYY-MM-DD
+  total_cash        Float    @default(0.0)
+  total_investments Float    @default(0.0)
+  total_real_estate Float    @default(0.0)
+  total_liabilities Float    @default(0.0)
+  total_mortgages   Float    @default(0.0)
+  net_worth         Float    @default(0.0)
+  created_at        DateTime @default(now())
+
+  @@index([date])
+}
+
+model PlaidItem {
+  id               Int      @id @default(autoincrement())
+  item_id          String   @unique
+  access_token     String
+  institution_name String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([item_id])
+}
+
+model AppSettings {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String?
+  is_secret Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([key])
+}

@@ -5,7 +5,7 @@
 
 const getBaseUrl = () => {
     const isServer = typeof window === 'undefined';
-    return isServer ? 'http://127.0.0.1:8000' : '';
+    return isServer ? 'http://127.0.0.1:3000' : '';
 };
 
 // Types
