@@ -1,4 +1,6 @@
-import { fetchNetWorth, fetchHistory } from "@/lib/api";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { getNetWorth, getNetWorthHistory } from "@/lib/services/networth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DollarSign, CreditCard, Wallet, TrendingUp, ArrowDownRight } from "lucide-react";
 import { NetWorthChart } from "@/components/dashboard/net-worth-chart";
@@ -7,10 +9,13 @@ import { DashboardInsightsCard } from "@/components/dashboard/dashboard-insights
 import { FinancialStoriesCard } from "@/components/dashboard/financial-stories";
 
 export default async function Home() {
-  // Parallel data fetching
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+
+  // Direct service calls — no HTTP round-trip needed in server components
   const [data, history] = await Promise.all([
-    fetchNetWorth(),
-    fetchHistory()
+    getNetWorth(userId).catch(() => null),
+    getNetWorthHistory(userId).catch(() => [])
   ]);
 
   // Fallback defaults

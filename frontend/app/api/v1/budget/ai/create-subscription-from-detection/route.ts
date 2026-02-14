@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 // POST /api/v1/budget/ai/create-subscription — create subscription from detected pattern
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { name, amount, frequency, category_id } = body;
@@ -23,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Validate category if provided
     if (category_id) {
-      const cat = await prisma.budgetCategory.findUnique({ where: { id: category_id } });
+      const cat = await prisma.budgetCategory.findFirst({ where: { id: category_id, user_id: userId } });
       if (!cat) {
         return NextResponse.json({ detail: 'Category not found' }, { status: 404 });
       }
@@ -39,6 +45,7 @@ export async function POST(request: NextRequest) {
 
     const subscription = await prisma.subscription.create({
       data: {
+        user_id: userId,
         name: String(name).slice(0, 200),
         amount: Math.abs(Number(amount)),
         frequency,

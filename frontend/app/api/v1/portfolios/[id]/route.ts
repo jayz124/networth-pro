@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { updatePortfolioSchema } from '@/lib/validators/shared';
 
@@ -43,6 +44,11 @@ export async function GET(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id } = await params;
         const portfolioId = parseInt(id, 10);
@@ -58,7 +64,7 @@ export async function GET(
             where: { id: portfolioId },
         });
 
-        if (!portfolio) {
+        if (!portfolio || portfolio.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Portfolio not found' },
                 { status: 404 },
@@ -112,6 +118,11 @@ export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id } = await params;
         const portfolioId = parseInt(id, 10);
@@ -127,7 +138,7 @@ export async function PUT(
             where: { id: portfolioId },
         });
 
-        if (!existing) {
+        if (!existing || existing.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Portfolio not found' },
                 { status: 404 },
@@ -178,6 +189,11 @@ export async function DELETE(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id } = await params;
         const portfolioId = parseInt(id, 10);
@@ -193,7 +209,7 @@ export async function DELETE(
             where: { id: portfolioId },
         });
 
-        if (!existing) {
+        if (!existing || existing.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Portfolio not found' },
                 { status: 404 },

@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 // POST /api/v1/budget/ai/detect-subscriptions — detect recurring transactions
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const months = Math.min(parseInt(searchParams.get('months') || '6', 10), 24);
@@ -12,6 +18,7 @@ export async function POST(request: NextRequest) {
 
     const transactions = await prisma.transaction.findMany({
       where: {
+        user_id: userId,
         date: { gte: startDate },
         amount: { lt: 0 }, // Only expenses
       },

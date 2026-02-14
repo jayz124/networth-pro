@@ -1,38 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { generateFinancialStories } from '@/lib/services/ai-insights';
 import { fetchRelevantNews } from '@/lib/services/news-fetcher';
 
-// Simple in-memory cache for stories + news
-let _cachedStoriesData: { data: unknown; cachedAt: number } | null = null;
+// Simple in-memory cache for stories + news (keyed by userId)
+const _cachedStoriesData = new Map<string, { data: unknown; cachedAt: number }>();
 const STORIES_CACHE_TTL = 1800 * 1000; // 30 minutes
 
 // GET /api/v1/dashboard/ai/stories — financial stories + news
 export async function GET(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const refresh = searchParams.get('refresh') === 'true';
     const now = Date.now();
 
     // Return cache if fresh
-    if (!refresh && _cachedStoriesData && now - _cachedStoriesData.cachedAt < STORIES_CACHE_TTL) {
-      return NextResponse.json(_cachedStoriesData.data);
+    const cached = _cachedStoriesData.get(userId);
+    if (!refresh && cached && now - cached.cachedAt < STORIES_CACHE_TTL) {
+      return NextResponse.json(cached.data);
     }
 
-    // Gather data
+    // Gather data for this user
     const [accounts, liabilities, holdings, properties, mortgages, transactions] = await Promise.all(
       [
         prisma.account.findMany({
+          where: { user_id: userId },
           include: { balance_snapshots: { orderBy: { date: 'desc' }, take: 1 } },
         }),
         prisma.liability.findMany({
+          where: { user_id: userId },
           include: { balance_snapshots: { orderBy: { date: 'desc' }, take: 1 } },
         }),
-        prisma.portfolioHolding.findMany(),
-        prisma.property.findMany(),
-        prisma.mortgage.findMany(),
+        prisma.portfolioHolding.findMany({ where: { portfolio: { user_id: userId } } }),
+        prisma.property.findMany({ where: { user_id: userId } }),
+        prisma.mortgage.findMany({ where: { property: { user_id: userId } } }),
         prisma.transaction.findMany({
           where: {
+            user_id: userId,
             date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
           },
           orderBy: { date: 'desc' },
@@ -129,8 +139,8 @@ export async function GET(request: NextRequest) {
 
     const result = { stories, news };
 
-    // Cache result
-    _cachedStoriesData = { data: result, cachedAt: now };
+    // Cache result per user
+    _cachedStoriesData.set(userId, { data: result, cachedAt: now });
 
     return NextResponse.json(result);
   } catch (e) {

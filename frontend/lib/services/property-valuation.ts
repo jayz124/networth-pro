@@ -20,7 +20,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 // ---------------------------------------------------------------------------
 
 async function getRentCastApiKey(): Promise<string | null> {
-    const setting = await prisma.appSettings.findUnique({
+    const setting = await prisma.appSettings.findFirst({
         where: { key: 'rentcast_api_key' },
     });
     if (!setting?.value) return null;
@@ -412,14 +412,14 @@ export async function refreshPropertyValuation(
 // Refresh all properties that have a provider set (2 API calls each)
 // ---------------------------------------------------------------------------
 
-export async function refreshAllValuations(): Promise<{
+export async function refreshAllValuations(userId?: string): Promise<{
     updated: number;
     errors: number;
     results: Array<{ id: number; name: string; new_value: number }>;
 }> {
-    const properties = await prisma.property.findMany({
-        where: { valuation_provider: { not: null } },
-    });
+    const where: Record<string, unknown> = { valuation_provider: { not: null } };
+    if (userId) where.user_id = userId;
+    const properties = await prisma.property.findMany({ where });
 
     let updated = 0;
     let errors = 0;

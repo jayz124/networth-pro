@@ -2,12 +2,23 @@
  * GET /api/v1/properties/summary — Portfolio-wide real estate summary
  */
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
-        const properties = await prisma.property.findMany();
-        const mortgages = await prisma.mortgage.findMany();
+        const properties = await prisma.property.findMany({
+            where: { user_id: userId },
+        });
+        const propertyIds = properties.map((p) => p.id);
+        const mortgages = await prisma.mortgage.findMany({
+            where: { property_id: { in: propertyIds } },
+        });
 
         // Group mortgages by property
         const mortgagesByProperty = new Map<number, typeof mortgages>();

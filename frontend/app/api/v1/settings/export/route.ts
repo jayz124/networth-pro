@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 // GET /api/v1/settings/export — export all data as JSON backup
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const [
       accounts,
@@ -23,21 +29,21 @@ export async function GET() {
       securityInfo,
       priceCache,
     ] = await Promise.all([
-      prisma.account.findMany(),
-      prisma.liability.findMany(),
-      prisma.portfolio.findMany(),
-      prisma.portfolioHolding.findMany(),
-      prisma.balanceSnapshot.findMany(),
-      prisma.property.findMany(),
-      prisma.mortgage.findMany(),
-      prisma.propertyValuationCache.findMany(),
-      prisma.propertyValueHistory.findMany(),
-      prisma.retirementPlan.findMany(),
-      prisma.budgetCategory.findMany(),
-      prisma.transaction.findMany(),
-      prisma.subscription.findMany(),
-      prisma.netWorthSnapshot.findMany(),
-      prisma.appSettings.findMany(),
+      prisma.account.findMany({ where: { user_id: userId } }),
+      prisma.liability.findMany({ where: { user_id: userId } }),
+      prisma.portfolio.findMany({ where: { user_id: userId } }),
+      prisma.portfolioHolding.findMany({ where: { portfolio: { user_id: userId } } }),
+      prisma.balanceSnapshot.findMany({ where: { OR: [{ account: { user_id: userId } }, { liability: { user_id: userId } }] } }),
+      prisma.property.findMany({ where: { user_id: userId } }),
+      prisma.mortgage.findMany({ where: { property: { user_id: userId } } }),
+      prisma.propertyValuationCache.findMany({ where: { property: { user_id: userId } } }),
+      prisma.propertyValueHistory.findMany({ where: { property: { user_id: userId } } }),
+      prisma.retirementPlan.findMany({ where: { user_id: userId } }),
+      prisma.budgetCategory.findMany({ where: { user_id: userId } }),
+      prisma.transaction.findMany({ where: { user_id: userId } }),
+      prisma.subscription.findMany({ where: { user_id: userId } }),
+      prisma.netWorthSnapshot.findMany({ where: { user_id: userId } }),
+      prisma.appSettings.findMany({ where: { user_id: userId } }),
       prisma.securityInfo.findMany(),
       prisma.priceCache.findMany(),
     ]);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
 import { getBatchQuotes } from '@/lib/services/market-data';
 
@@ -10,6 +11,11 @@ const batchQuoteSchema = z.object({
  * POST /api/v1/securities/batch-quotes — Get quotes for multiple tickers in a single request.
  */
 export async function POST(request: NextRequest) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const body = await request.json();
         const parsed = batchQuoteSchema.safeParse(body);

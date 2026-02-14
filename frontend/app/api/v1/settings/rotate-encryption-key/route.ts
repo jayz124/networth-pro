@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { encrypt, decrypt, isEncrypted } from '@/lib/services/encryption';
 import crypto from 'crypto';
@@ -20,9 +21,14 @@ const KEY_LENGTH = 32;
 
 // POST /api/v1/settings/rotate-encryption-key — decrypt with old key, re-encrypt with new key
 export async function POST() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    // Step 1: Read and decrypt all secret values using current key
-    const settings = await prisma.appSettings.findMany();
+    // Step 1: Read and decrypt all secret values for this user using current key
+    const settings = await prisma.appSettings.findMany({ where: { user_id: userId } });
     const decryptedSecrets: Array<{ key: string; plaintext: string }> = [];
 
     for (const setting of settings) {
@@ -43,15 +49,12 @@ export async function POST() {
     fs.writeFileSync(KEY_FILE, newKey, { mode: 0o600 });
 
     // Step 3: Re-encrypt all secrets with the new key
-    // Note: The encrypt() function will pick up the new key on next call
-    // since we need to clear the cached key first.
-    // We do this by requiring a fresh import or by writing directly.
     let reEncrypted = 0;
 
     for (const { key, plaintext } of decryptedSecrets) {
       const newEncrypted = encrypt(plaintext);
       await prisma.appSettings.update({
-        where: { key },
+        where: { user_id_key: { user_id: userId, key } },
         data: { value: newEncrypted },
       });
       reEncrypted++;

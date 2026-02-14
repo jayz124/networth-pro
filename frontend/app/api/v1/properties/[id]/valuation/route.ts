@@ -4,6 +4,7 @@
  *   Set refresh=true to force a fresh API call (uses 2 API calls).
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import {
     getCachedValuation,
@@ -16,6 +17,11 @@ export async function GET(
     request: NextRequest,
     context: RouteContext,
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id: rawId } = await context.params;
         const propertyId = Number(rawId);
@@ -29,7 +35,7 @@ export async function GET(
         const prop = await prisma.property.findUnique({
             where: { id: propertyId },
         });
-        if (!prop) {
+        if (!prop || prop.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Property not found' },
                 { status: 404 },

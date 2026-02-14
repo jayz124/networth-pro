@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { getBatchQuotes } from '@/lib/services/market-data';
 
@@ -43,6 +44,11 @@ export async function POST(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id } = await params;
         const portfolioId = parseInt(id, 10);
@@ -58,7 +64,7 @@ export async function POST(
             where: { id: portfolioId },
         });
 
-        if (!portfolio) {
+        if (!portfolio || portfolio.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Portfolio not found' },
                 { status: 404 },

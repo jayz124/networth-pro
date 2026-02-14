@@ -191,7 +191,7 @@ export async function fetchNetWorth(): Promise<NetWorth | null> {
     try {
         const baseUrl = getBaseUrl();
         const res = await fetch(`${baseUrl}/api/v1/networth`, {
-            cache: 'no-store'
+            cache: 'no-store',
         });
 
         if (!res.ok) {
@@ -209,7 +209,7 @@ export async function fetchHistory() {
     try {
         const baseUrl = getBaseUrl();
         const res = await fetch(`${baseUrl}/api/v1/networth/history`, {
-            cache: 'no-store'
+            cache: 'no-store',
         });
 
         if (!res.ok) {
@@ -266,7 +266,7 @@ export async function fetchPortfolios(): Promise<Portfolio[]> {
     try {
         const baseUrl = getBaseUrl();
         const res = await fetch(`${baseUrl}/api/v1/portfolios`, {
-            cache: 'no-store'
+            cache: 'no-store',
         });
 
         if (!res.ok) {
@@ -318,7 +318,7 @@ export async function fetchHoldings(): Promise<Holding[]> {
     try {
         const baseUrl = getBaseUrl();
         const res = await fetch(`${baseUrl}/api/v1/portfolio/holdings`, {
-            cache: 'no-store'
+            cache: 'no-store',
         });
 
         if (!res.ok) {

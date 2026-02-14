@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { createPortfolioSchema } from '@/lib/validators/shared';
 
 /**
- * GET /api/v1/portfolios — List all portfolios.
+ * GET /api/v1/portfolios — List all portfolios for the authenticated user.
  */
 export async function GET() {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const portfolios = await prisma.portfolio.findMany({
+            where: { user_id: userId },
             orderBy: { created_at: 'desc' },
         });
 
@@ -30,9 +37,14 @@ export async function GET() {
 }
 
 /**
- * POST /api/v1/portfolios — Create a new portfolio.
+ * POST /api/v1/portfolios — Create a new portfolio for the authenticated user.
  */
 export async function POST(request: NextRequest) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const body = await request.json();
         const parsed = createPortfolioSchema.safeParse(body);
@@ -47,7 +59,7 @@ export async function POST(request: NextRequest) {
         const { name, description, currency } = parsed.data;
 
         const portfolio = await prisma.portfolio.create({
-            data: { name, description, currency },
+            data: { name, description, currency, user_id: userId },
         });
 
         return NextResponse.json(

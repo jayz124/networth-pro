@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { createAccountSchema } from '@/lib/validators/shared';
 
@@ -8,7 +9,13 @@ import { createAccountSchema } from '@/lib/validators/shared';
  */
 export async function GET() {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const accounts = await prisma.account.findMany({
+            where: { user_id: userId },
             include: {
                 balance_snapshots: {
                     orderBy: { date: 'desc' },
@@ -49,6 +56,11 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const parsed = createAccountSchema.safeParse(body);
 
@@ -61,9 +73,9 @@ export async function POST(request: NextRequest) {
 
         const data = parsed.data;
 
-        // Check for duplicate name
-        const existing = await prisma.account.findUnique({
-            where: { name: data.name },
+        // Check for duplicate name within user's accounts
+        const existing = await prisma.account.findFirst({
+            where: { name: data.name, user_id: userId },
         });
         if (existing) {
             return NextResponse.json(
@@ -78,6 +90,7 @@ export async function POST(request: NextRequest) {
 
         const account = await prisma.account.create({
             data: {
+                user_id: userId,
                 name: accountData.name,
                 institution: accountData.institution ?? null,
                 type: accountData.type,

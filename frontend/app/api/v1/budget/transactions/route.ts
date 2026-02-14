@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { createTransactionSchema } from '@/lib/validators/shared';
 
 // GET /api/v1/budget/transactions — list transactions with optional filters
 export async function GET(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('start_date');
@@ -15,7 +21,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: Record<string, any> = {};
+    const where: Record<string, any> = { user_id: userId };
 
     if (startDate || endDate) {
       where.date = {};
@@ -58,6 +64,11 @@ export async function GET(request: NextRequest) {
 
 // POST /api/v1/budget/transactions — create a new transaction
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const parsed = createTransactionSchema.safeParse(body);
@@ -70,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     // Validate category exists if provided
     if (parsed.data.category_id) {
-      const cat = await prisma.budgetCategory.findUnique({ where: { id: parsed.data.category_id } });
+      const cat = await prisma.budgetCategory.findFirst({ where: { id: parsed.data.category_id, user_id: userId } });
       if (!cat) {
         return NextResponse.json({ detail: 'Category not found' }, { status: 404 });
       }
@@ -86,6 +97,7 @@ export async function POST(request: NextRequest) {
 
     const transaction = await prisma.transaction.create({
       data: {
+        user_id: userId,
         date: new Date(parsed.data.date),
         description: parsed.data.description,
         amount: parsed.data.amount,

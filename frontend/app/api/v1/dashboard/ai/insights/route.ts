@@ -1,23 +1,31 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { generateDashboardInsights } from '@/lib/services/ai-insights';
 
 // GET /api/v1/dashboard/ai/insights — dashboard-level AI insights
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    // Gather all financial data
+    // Gather all financial data for this user
     const [accounts, liabilities, portfolioHoldings, properties, mortgages, networthSnapshots] =
       await Promise.all([
         prisma.account.findMany({
+          where: { user_id: userId },
           include: { balance_snapshots: { orderBy: { date: 'desc' }, take: 1 } },
         }),
         prisma.liability.findMany({
+          where: { user_id: userId },
           include: { balance_snapshots: { orderBy: { date: 'desc' }, take: 1 } },
         }),
-        prisma.portfolioHolding.findMany(),
-        prisma.property.findMany(),
-        prisma.mortgage.findMany(),
-        prisma.netWorthSnapshot.findMany({ orderBy: { date: 'desc' }, take: 12 }),
+        prisma.portfolioHolding.findMany({ where: { portfolio: { user_id: userId } } }),
+        prisma.property.findMany({ where: { user_id: userId } }),
+        prisma.mortgage.findMany({ where: { property: { user_id: userId } } }),
+        prisma.netWorthSnapshot.findMany({ where: { user_id: userId }, orderBy: { date: 'desc' }, take: 12 }),
       ]);
 
     // Build net worth data

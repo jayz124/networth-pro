@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 // GET /api/v1/budget/forecast — forecast future income/expenses from recurring transactions
 export async function GET(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const forecastMonths = Math.min(parseInt(searchParams.get('months') || '6', 10), 12);
@@ -10,6 +16,7 @@ export async function GET(request: NextRequest) {
     // Get all recurring transactions
     const recurringTxns = await prisma.transaction.findMany({
       where: {
+        user_id: userId,
         is_recurring: true,
         recurrence_frequency: { not: null },
       },
@@ -20,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     // Get active subscriptions
     const subscriptions = await prisma.subscription.findMany({
-      where: { is_active: true },
+      where: { user_id: userId, is_active: true },
       include: {
         category: { select: { id: true, name: true } },
       },

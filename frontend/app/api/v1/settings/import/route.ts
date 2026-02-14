@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 // POST /api/v1/settings/import — import JSON backup
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     let importData: Record<string, unknown>;
 
@@ -37,8 +43,9 @@ export async function POST(request: NextRequest) {
           try {
             const importedBalance = (rec.current_balance as number) || 0;
             const account = await tx.account.upsert({
-              where: { name: rec.name as string },
+              where: { user_id_name: { user_id: userId, name: rec.name as string } },
               create: {
+                user_id: userId,
                 name: rec.name as string,
                 institution: (rec.institution as string) || null,
                 type: (rec.type as string) || 'checking',
@@ -79,8 +86,9 @@ export async function POST(request: NextRequest) {
           try {
             const importedBalance = (rec.current_balance as number) || 0;
             const liability = await tx.liability.upsert({
-              where: { name: rec.name as string },
+              where: { user_id_name: { user_id: userId, name: rec.name as string } },
               create: {
+                user_id: userId,
                 name: rec.name as string,
                 category: (rec.category as string) || null,
                 currency: (rec.currency as string) || 'USD',
@@ -117,8 +125,9 @@ export async function POST(request: NextRequest) {
           const rec = item as Record<string, unknown>;
           try {
             await tx.portfolio.upsert({
-              where: { name: rec.name as string },
+              where: { user_id_name: { user_id: userId, name: rec.name as string } },
               create: {
+                user_id: userId,
                 name: rec.name as string,
                 description: (rec.description as string) || null,
                 currency: (rec.currency as string) || 'USD',
@@ -141,8 +150,9 @@ export async function POST(request: NextRequest) {
           const rec = item as Record<string, unknown>;
           try {
             await tx.budgetCategory.upsert({
-              where: { name: rec.name as string },
+              where: { user_id_name: { user_id: userId, name: rec.name as string } },
               create: {
+                user_id: userId,
                 name: rec.name as string,
                 icon: (rec.icon as string) || null,
                 color: (rec.color as string) || null,
@@ -167,8 +177,9 @@ export async function POST(request: NextRequest) {
           const rec = item as Record<string, unknown>;
           try {
             await tx.retirementPlan.upsert({
-              where: { name: rec.name as string },
+              where: { user_id_name: { user_id: userId, name: rec.name as string } },
               create: {
+                user_id: userId,
                 name: rec.name as string,
                 description: (rec.description as string) || null,
                 mode: (rec.mode as string) || 'essential',
@@ -194,8 +205,9 @@ export async function POST(request: NextRequest) {
           if (rec.is_secret || !rec.value) continue; // Skip secrets in import
           try {
             await tx.appSettings.upsert({
-              where: { key: rec.key as string },
+              where: { user_id_key: { user_id: userId, key: rec.key as string } },
               create: {
+                user_id: userId,
                 key: rec.key as string,
                 value: rec.value as string,
                 is_secret: false,

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { encrypt, isEncrypted } from '@/lib/services/encryption';
 
@@ -13,8 +14,13 @@ const SECRET_KEYS = new Set([
 
 // POST /api/v1/settings/encrypt-existing — encrypt any plaintext secret values
 export async function POST() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const settings = await prisma.appSettings.findMany();
+    const settings = await prisma.appSettings.findMany({ where: { user_id: userId } });
     let encrypted = 0;
 
     for (const setting of settings) {
@@ -25,7 +31,7 @@ export async function POST() {
       // Plaintext secret found — encrypt it
       const encryptedValue = encrypt(setting.value);
       await prisma.appSettings.update({
-        where: { key: setting.key },
+        where: { user_id_key: { user_id: userId, key: setting.key } },
         data: { value: encryptedValue, is_secret: true },
       });
       encrypted++;

@@ -84,8 +84,10 @@ const SECRET_KEYS = new Set([
 // Settings Helpers
 // ============================================
 
-export async function getSettingValue(key: string): Promise<string | null> {
-    const setting = await prisma.appSettings.findUnique({ where: { key } });
+export async function getSettingValue(key: string, userId?: string): Promise<string | null> {
+    const setting = userId
+        ? await prisma.appSettings.findUnique({ where: { user_id_key: { user_id: userId, key } } })
+        : await prisma.appSettings.findFirst({ where: { key } });
     if (!setting?.value) return null;
     if (SECRET_KEYS.has(key)) {
         return decrypt(setting.value);
@@ -97,20 +99,20 @@ export async function getSettingValue(key: string): Promise<string | null> {
 // Provider Resolution
 // ============================================
 
-export async function resolveProvider(): Promise<{
+export async function resolveProvider(userId?: string): Promise<{
     provider: AIProviderType;
     apiKey: string | null;
     model: string;
 }> {
-    const chosenStr = (await getSettingValue('ai_provider')) || 'groq';
-    const modelOverride = await getSettingValue('ai_model');
+    const chosenStr = (await getSettingValue('ai_provider', userId)) || 'groq';
+    const modelOverride = await getSettingValue('ai_model', userId);
 
     let chosen: AIProviderType = ALL_PROVIDERS.includes(chosenStr as AIProviderType)
         ? (chosenStr as AIProviderType)
         : 'groq';
 
     // Check chosen provider first
-    const chosenKey = await getSettingValue(PROVIDER_CONFIG[chosen].api_key_setting);
+    const chosenKey = await getSettingValue(PROVIDER_CONFIG[chosen].api_key_setting, userId);
     if (chosenKey) {
         return {
             provider: chosen,
@@ -122,7 +124,7 @@ export async function resolveProvider(): Promise<{
     // Fallback: scan all providers for any configured key
     for (const provider of ALL_PROVIDERS) {
         if (provider === chosen) continue;
-        const key = await getSettingValue(PROVIDER_CONFIG[provider].api_key_setting);
+        const key = await getSettingValue(PROVIDER_CONFIG[provider].api_key_setting, userId);
         if (key) {
             return {
                 provider,
@@ -401,12 +403,12 @@ export function parseJsonResponse(text: string): unknown {
 // Provider Info (for settings page)
 // ============================================
 
-export async function getAIProviders() {
-    const { provider: activeProvider, model: activeModel } = await resolveProvider();
+export async function getAIProviders(userId?: string) {
+    const { provider: activeProvider, model: activeModel } = await resolveProvider(userId);
 
     const providers = [];
     for (const [id, config] of Object.entries(PROVIDER_CONFIG)) {
-        const apiKey = await getSettingValue(config.api_key_setting);
+        const apiKey = await getSettingValue(config.api_key_setting, userId);
         providers.push({
             id,
             name: config.display_name,

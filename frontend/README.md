@@ -101,4 +101,4 @@ npm run lint     # ESLint
 
 ## Environment
 
-The frontend expects the backend API at `http://127.0.0.1:8000`. No `.env` file required for local development.
+All API routes run as Next.js API routes under `/api/`. No separate backend server required. No `.env` file required for local development.

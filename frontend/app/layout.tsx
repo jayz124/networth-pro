@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { AppSidebar } from "@/components/app-sidebar";
 import { MobileHeader } from "@/components/mobile-header";
@@ -31,32 +32,34 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${plusJakarta.variable} ${jetbrainsMono.variable} font-sans antialiased`}
-      >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <body
+          className={`${plusJakarta.variable} ${jetbrainsMono.variable} font-sans antialiased`}
         >
-          <SettingsProvider>
-            <div className="flex h-screen overflow-hidden flex-col md:flex-row">
-              <aside className="hidden w-64 border-r bg-card/50 md:block">
-                <AppSidebar />
-              </aside>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <SettingsProvider>
+              <div className="flex h-screen overflow-hidden flex-col md:flex-row">
+                <aside className="hidden w-64 border-r bg-card/50 md:block">
+                  <AppSidebar />
+                </aside>
 
-              <div className="flex-1 flex flex-col overflow-hidden">
-                <MobileHeader />
-                <main className="flex-1 overflow-y-auto bg-background p-4 md:p-8">
-                  {children}
-                </main>
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <MobileHeader />
+                  <main className="flex-1 overflow-y-auto bg-background p-4 md:p-8">
+                    {children}
+                  </main>
+                </div>
               </div>
-            </div>
-          </SettingsProvider>
-        </ThemeProvider>
-      </body>
-    </html>
+            </SettingsProvider>
+          </ThemeProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

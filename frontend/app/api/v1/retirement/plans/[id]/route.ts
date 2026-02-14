@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { updateRetirementPlanSchema } from '@/lib/validators/shared';
 
@@ -7,6 +8,11 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { id } = await params;
   const planId = parseInt(id, 10);
   if (isNaN(planId)) {
@@ -15,7 +21,7 @@ export async function GET(
 
   try {
     const plan = await prisma.retirementPlan.findUnique({ where: { id: planId } });
-    if (!plan) {
+    if (!plan || plan.user_id !== userId) {
       return NextResponse.json({ detail: 'Retirement plan not found' }, { status: 404 });
     }
     return NextResponse.json(plan);
@@ -30,6 +36,11 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { id } = await params;
   const planId = parseInt(id, 10);
   if (isNaN(planId)) {
@@ -38,7 +49,7 @@ export async function PUT(
 
   try {
     const existing = await prisma.retirementPlan.findUnique({ where: { id: planId } });
-    if (!existing) {
+    if (!existing || existing.user_id !== userId) {
       return NextResponse.json({ detail: 'Retirement plan not found' }, { status: 404 });
     }
 
@@ -81,6 +92,11 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { id } = await params;
   const planId = parseInt(id, 10);
   if (isNaN(planId)) {
@@ -89,7 +105,7 @@ export async function DELETE(
 
   try {
     const existing = await prisma.retirementPlan.findUnique({ where: { id: planId } });
-    if (!existing) {
+    if (!existing || existing.user_id !== userId) {
       return NextResponse.json({ detail: 'Retirement plan not found' }, { status: 404 });
     }
 

@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { resolveProvider, PROVIDER_CONFIG } from '@/lib/services/ai-service';
 
 // GET /api/v1/budget/statements/supported-formats
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const { provider, apiKey } = await resolveProvider();
+    const { provider, apiKey } = await resolveProvider(userId);
     const hasAI = Boolean(apiKey);
     const hasVision = hasAI && PROVIDER_CONFIG[provider]?.supports_vision;
 

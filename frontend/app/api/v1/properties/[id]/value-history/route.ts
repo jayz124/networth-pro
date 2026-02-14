@@ -2,6 +2,7 @@
  * GET /api/v1/properties/:id/value-history — Get historical value data (no API call)
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { getValueHistory } from '@/lib/services/property-valuation';
 
@@ -11,6 +12,11 @@ export async function GET(
     _request: NextRequest,
     context: RouteContext,
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id: rawId } = await context.params;
         const propertyId = Number(rawId);
@@ -24,7 +30,7 @@ export async function GET(
         const prop = await prisma.property.findUnique({
             where: { id: propertyId },
         });
-        if (!prop) {
+        if (!prop || prop.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Property not found' },
                 { status: 404 },

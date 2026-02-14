@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 const KNOWN_SETTINGS: Record<string, { is_secret: boolean; default_value: string | null }> = {
   groq_api_key: { is_secret: true, default_value: null },
@@ -16,8 +17,15 @@ const SECRET_MASK = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u202
 
 // GET /api/v1/settings — list all settings
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const dbSettings = await prisma.appSettings.findMany();
+    const dbSettings = await prisma.appSettings.findMany({
+      where: { user_id: userId },
+    });
     const dbMap = new Map(dbSettings.map((s) => [s.key, s]));
 
     const result: Array<{

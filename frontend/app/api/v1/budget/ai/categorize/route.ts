@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { aiCategorizeTransaction, isAIAvailable } from '@/lib/services/ai-insights';
 
 // POST /api/v1/budget/ai/categorize — auto-categorize uncategorized transactions
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const available = await isAIAvailable();
+    const available = await isAIAvailable(userId);
     if (!available) {
       return NextResponse.json(
         { detail: 'No AI provider configured. Set an API key in Settings.' },
@@ -18,7 +24,9 @@ export async function POST(request: NextRequest) {
     const transactionIds = body.transaction_ids as number[] | undefined;
 
     // Get categories
-    const categories = await prisma.budgetCategory.findMany();
+    const categories = await prisma.budgetCategory.findMany({
+      where: { user_id: userId },
+    });
     if (categories.length === 0) {
       return NextResponse.json(
         { detail: 'No budget categories defined. Create some categories first.' },
@@ -30,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Get uncategorized transactions (or specific IDs)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: Record<string, any> = {};
+    const where: Record<string, any> = { user_id: userId };
     if (transactionIds && transactionIds.length > 0) {
       where.id = { in: transactionIds };
     } else {

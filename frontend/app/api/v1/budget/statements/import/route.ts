@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 interface ImportTransaction {
@@ -14,6 +15,11 @@ interface ImportTransaction {
 
 // POST /api/v1/budget/statements/import — import parsed transactions
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { transactions, account_id, skip_duplicates } = body as {
@@ -57,6 +63,7 @@ export async function POST(request: NextRequest) {
         if (skip_duplicates !== false) {
           const existing = await prisma.transaction.findFirst({
             where: {
+              user_id: userId,
               date: txnDate,
               description: txn.description,
               amount: txn.amount,
@@ -70,6 +77,7 @@ export async function POST(request: NextRequest) {
 
         await prisma.transaction.create({
           data: {
+            user_id: userId,
             date: txnDate,
             description: txn.description.slice(0, 500),
             amount: txn.amount,

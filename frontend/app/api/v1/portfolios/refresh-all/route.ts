@@ -1,13 +1,28 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { getBatchQuotes } from '@/lib/services/market-data';
 
 /**
- * POST /api/v1/portfolios/refresh-all — Refresh prices for all holdings across all portfolios.
+ * POST /api/v1/portfolios/refresh-all — Refresh prices for all holdings across all of the user's portfolios.
  */
 export async function POST() {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
-        const holdings = await prisma.portfolioHolding.findMany();
+        // First get all portfolios belonging to the user
+        const userPortfolios = await prisma.portfolio.findMany({
+            where: { user_id: userId },
+            select: { id: true },
+        });
+        const portfolioIds = userPortfolios.map((p) => p.id);
+
+        const holdings = await prisma.portfolioHolding.findMany({
+            where: { portfolio_id: { in: portfolioIds } },
+        });
 
         if (holdings.length === 0) {
             return NextResponse.json({

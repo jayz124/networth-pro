@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { updateSubscriptionSchema } from '@/lib/validators/shared';
 
@@ -7,6 +8,11 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { id } = await params;
   const subId = parseInt(id, 10);
   if (isNaN(subId)) {
@@ -14,7 +20,7 @@ export async function PUT(
   }
 
   try {
-    const existing = await prisma.subscription.findUnique({ where: { id: subId } });
+    const existing = await prisma.subscription.findFirst({ where: { id: subId, user_id: userId } });
     if (!existing) {
       return NextResponse.json({ detail: 'Subscription not found' }, { status: 404 });
     }
@@ -54,6 +60,11 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { id } = await params;
   const subId = parseInt(id, 10);
   if (isNaN(subId)) {
@@ -61,7 +72,7 @@ export async function DELETE(
   }
 
   try {
-    const existing = await prisma.subscription.findUnique({ where: { id: subId } });
+    const existing = await prisma.subscription.findFirst({ where: { id: subId, user_id: userId } });
     if (!existing) {
       return NextResponse.json({ detail: 'Subscription not found' }, { status: 404 });
     }

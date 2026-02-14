@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { aiReviewTransactions, isAIAvailable } from '@/lib/services/ai-insights';
 
 // POST /api/v1/budget/statements/ai-review — AI review parsed transactions
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { transactions } = body as {
@@ -14,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ detail: 'No transactions to review' }, { status: 400 });
     }
 
-    const available = await isAIAvailable();
+    const available = await isAIAvailable(userId);
     if (!available) {
       // Return transactions unchanged with a warning
       return NextResponse.json({
@@ -26,6 +32,7 @@ export async function POST(request: NextRequest) {
 
     // Get categories for AI to use
     const categories = await prisma.budgetCategory.findMany({
+      where: { user_id: userId },
       select: { id: true, name: true, is_income: true },
     });
 

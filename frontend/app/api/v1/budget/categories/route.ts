@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { createCategorySchema } from '@/lib/validators/shared';
 
 // GET /api/v1/budget/categories — list all categories
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const categories = await prisma.budgetCategory.findMany({
+      where: { user_id: userId },
       orderBy: { name: 'asc' },
     });
     return NextResponse.json(categories);
@@ -17,6 +24,11 @@ export async function GET() {
 
 // POST /api/v1/budget/categories — create a new category
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const parsed = createCategorySchema.safeParse(body);
@@ -29,6 +41,7 @@ export async function POST(request: NextRequest) {
 
     const category = await prisma.budgetCategory.create({
       data: {
+        user_id: userId,
         name: parsed.data.name,
         icon: parsed.data.icon || null,
         color: parsed.data.color || null,

@@ -76,8 +76,8 @@ function cacheCategorization(cacheKey: string, result: Record<string, unknown>):
 // AI availability check
 // ============================================
 
-export async function isAIAvailable(): Promise<boolean> {
-  const { apiKey } = await resolveProvider();
+export async function isAIAvailable(userId?: string): Promise<boolean> {
+  const { apiKey } = await resolveProvider(userId);
   return Boolean(apiKey);
 }
 

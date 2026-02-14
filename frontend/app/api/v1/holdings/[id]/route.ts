@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { updateHoldingSchema } from '@/lib/validators/shared';
 
@@ -43,6 +44,11 @@ export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id } = await params;
         const holdingId = parseInt(id, 10);
@@ -56,9 +62,17 @@ export async function PUT(
 
         const existing = await prisma.portfolioHolding.findUnique({
             where: { id: holdingId },
+            include: { portfolio: { select: { user_id: true } } },
         });
 
         if (!existing) {
+            return NextResponse.json(
+                { detail: 'Holding not found' },
+                { status: 404 },
+            );
+        }
+
+        if (existing.portfolio.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Holding not found' },
                 { status: 404 },
@@ -116,6 +130,11 @@ export async function DELETE(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id } = await params;
         const holdingId = parseInt(id, 10);
@@ -129,9 +148,17 @@ export async function DELETE(
 
         const existing = await prisma.portfolioHolding.findUnique({
             where: { id: holdingId },
+            include: { portfolio: { select: { user_id: true } } },
         });
 
         if (!existing) {
+            return NextResponse.json(
+                { detail: 'Holding not found' },
+                { status: 404 },
+            );
+        }
+
+        if (existing.portfolio.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Holding not found' },
                 { status: 404 },

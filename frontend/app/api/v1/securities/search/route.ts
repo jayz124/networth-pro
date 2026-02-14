@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { searchSecurities } from '@/lib/services/market-data';
 
 /**
  * GET /api/v1/securities/search?q=&limit= — Search securities by ticker or company name.
  */
 export async function GET(request: NextRequest) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { searchParams } = new URL(request.url);
         const q = searchParams.get('q');

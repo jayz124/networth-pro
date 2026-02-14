@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { settingUpdateSchema } from '@/lib/validators/shared';
 import { encrypt } from '@/lib/services/encryption';
@@ -19,10 +20,17 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ key: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { key } = await params;
 
   try {
-    const setting = await prisma.appSettings.findUnique({ where: { key } });
+    const setting = await prisma.appSettings.findUnique({
+      where: { user_id_key: { user_id: userId, key } },
+    });
     if (!setting) {
       return NextResponse.json({ detail: `Setting '${key}' not found` }, { status: 404 });
     }
@@ -46,6 +54,11 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ key: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { key } = await params;
 
   try {
@@ -63,7 +76,9 @@ export async function PUT(
 
     // If user sends the mask back, don't update the value (they didn't change it)
     if (isSecret && value === SECRET_MASK) {
-      const existing = await prisma.appSettings.findUnique({ where: { key } });
+      const existing = await prisma.appSettings.findUnique({
+        where: { user_id_key: { user_id: userId, key } },
+      });
       if (existing) {
         return NextResponse.json({
           key: existing.key,
@@ -80,8 +95,8 @@ export async function PUT(
     }
 
     const setting = await prisma.appSettings.upsert({
-      where: { key },
-      create: { key, value, is_secret: isSecret },
+      where: { user_id_key: { user_id: userId, key } },
+      create: { user_id: userId, key, value, is_secret: isSecret },
       update: { value, is_secret: isSecret },
     });
 
@@ -102,15 +117,24 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ key: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { key } = await params;
 
   try {
-    const existing = await prisma.appSettings.findUnique({ where: { key } });
+    const existing = await prisma.appSettings.findUnique({
+      where: { user_id_key: { user_id: userId, key } },
+    });
     if (!existing) {
       return NextResponse.json({ detail: `Setting '${key}' not found` }, { status: 404 });
     }
 
-    await prisma.appSettings.delete({ where: { key } });
+    await prisma.appSettings.delete({
+      where: { user_id_key: { user_id: userId, key } },
+    });
     return NextResponse.json({ status: 'deleted' });
   } catch (e) {
     console.error(`Failed to delete setting '${key}':`, e);

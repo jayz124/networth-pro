@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { resolveProvider } from '@/lib/services/ai-service';
 
 // GET /api/v1/budget/ai/status — check if AI is available
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const { provider, apiKey, model } = await resolveProvider();
+    const { provider, apiKey, model } = await resolveProvider(userId);
     const isAvailable = Boolean(apiKey);
 
     return NextResponse.json({

@@ -3,12 +3,19 @@
  * POST /api/v1/properties  — Create a new property
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { createPropertySchema } from '@/lib/validators/shared';
 
 export async function GET() {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const properties = await prisma.property.findMany({
+            where: { user_id: userId },
             include: {
                 mortgages: true,
                 valuations: true,
@@ -82,6 +89,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const body = await request.json();
         const parsed = createPropertySchema.safeParse(body);
@@ -96,6 +108,7 @@ export async function POST(request: NextRequest) {
 
         const prop = await prisma.property.create({
             data: {
+                user_id: userId,
                 name: data.name,
                 address: data.address,
                 property_type: data.property_type,

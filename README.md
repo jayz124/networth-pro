@@ -64,19 +64,7 @@ A comprehensive personal finance and retirement planning application with multi-
 - Node.js 18+
 - Python 3.10+
 
-### Backend (FastAPI)
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-API Docs: http://127.0.0.1:8000/docs
-
-### Frontend (Next.js)
+### Setup
 
 ```bash
 cd frontend
@@ -85,6 +73,8 @@ npm run dev
 ```
 
 App: http://localhost:3000
+
+All API routes run as Next.js API routes under `/api/`. No separate backend server required.
 
 ---
 

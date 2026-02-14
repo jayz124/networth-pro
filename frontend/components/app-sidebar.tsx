@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { UserButton } from "@clerk/nextjs"
 
 const navigation = [
     { name: "Dashboard", href: "/", icon: Home },
@@ -67,10 +68,17 @@ export function AppSidebar() {
                 </nav>
             </div>
 
-            {/* Bottom Section - Theme Toggle */}
+            {/* Bottom Section - User + Theme */}
             <div className="border-t border-border/50 p-4">
                 <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">Theme</span>
+                    <UserButton
+                        afterSignOutUrl="/sign-in"
+                        appearance={{
+                            elements: {
+                                avatarBox: "h-8 w-8",
+                            },
+                        }}
+                    />
                     <ThemeToggle />
                 </div>
             </div>

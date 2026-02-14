@@ -19,10 +19,7 @@ export function PlaidLinkButton({ onSuccess }: PlaidLinkButtonProps) {
     useEffect(() => {
         const createLinkToken = async () => {
             try {
-                // Determine API URL based on environment/proxy
-                const apiUrl = "http://localhost:8000/api/plaid/create_link_token"
-
-                const response = await fetch(apiUrl, { method: "POST" })
+                const response = await fetch("/api/plaid/create-link-token", { method: "POST" })
                 const data = await response.json()
                 setToken(data.link_token)
             } catch (error) {
@@ -37,10 +34,7 @@ export function PlaidLinkButton({ onSuccess }: PlaidLinkButtonProps) {
     const onSuccessCallback = useCallback<PlaidLinkOnSuccess>(async (public_token, metadata) => {
         setIsLoading(true)
         try {
-            // In production use proxy or environment var
-            const apiUrl = "http://localhost:8000/api/plaid/exchange_public_token"
-
-            await fetch(apiUrl, {
+            await fetch("/api/plaid/exchange-public-token", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ public_token }),

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { updateTransactionSchema } from '@/lib/validators/shared';
 
@@ -7,6 +8,11 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { id } = await params;
   const txnId = parseInt(id, 10);
   if (isNaN(txnId)) {
@@ -14,7 +20,7 @@ export async function PUT(
   }
 
   try {
-    const existing = await prisma.transaction.findUnique({ where: { id: txnId } });
+    const existing = await prisma.transaction.findFirst({ where: { id: txnId, user_id: userId } });
     if (!existing) {
       return NextResponse.json({ detail: 'Transaction not found' }, { status: 404 });
     }
@@ -55,6 +61,11 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { id } = await params;
   const txnId = parseInt(id, 10);
   if (isNaN(txnId)) {
@@ -62,7 +73,7 @@ export async function DELETE(
   }
 
   try {
-    const existing = await prisma.transaction.findUnique({ where: { id: txnId } });
+    const existing = await prisma.transaction.findFirst({ where: { id: txnId, user_id: userId } });
     if (!existing) {
       return NextResponse.json({ detail: 'Transaction not found' }, { status: 404 });
     }

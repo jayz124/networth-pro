@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import {
   generateSpendingInsights,
@@ -9,6 +10,11 @@ import { resolveProvider } from '@/lib/services/ai-service';
 
 // GET /api/v1/budget/ai/insights — spending insights
 export async function GET(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const enhanced = searchParams.get('enhanced') === 'true';
@@ -19,7 +25,7 @@ export async function GET(request: NextRequest) {
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
     const transactions = await prisma.transaction.findMany({
-      where: { date: { gte: startOfMonth, lte: endOfMonth } },
+      where: { user_id: userId, date: { gte: startOfMonth, lte: endOfMonth } },
       include: {
         category: { select: { id: true, name: true, icon: true, color: true, budget_limit: true, is_income: true } },
       },
@@ -68,7 +74,7 @@ export async function GET(request: NextRequest) {
     const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
 
     const prevTransactions = await prisma.transaction.findMany({
-      where: { date: { gte: prevStart, lte: prevEnd } },
+      where: { user_id: userId, date: { gte: prevStart, lte: prevEnd } },
       select: { amount: true },
     });
 
@@ -84,11 +90,11 @@ export async function GET(request: NextRequest) {
       : null;
 
     // Determine AI availability for response metadata
-    const aiAvailable = await isAIAvailable();
+    const aiAvailable = await isAIAvailable(userId);
     let providerName: string | null = null;
     if (aiAvailable) {
       try {
-        const { provider } = await resolveProvider();
+        const { provider } = await resolveProvider(userId);
         providerName = provider;
       } catch { /* ignore */ }
     }
@@ -102,7 +108,7 @@ export async function GET(request: NextRequest) {
       // Get cash flow data
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
       const allTxns = await prisma.transaction.findMany({
-        where: { date: { gte: sixMonthsAgo } },
+        where: { user_id: userId, date: { gte: sixMonthsAgo } },
         select: { date: true, amount: true },
       });
 
@@ -120,7 +126,9 @@ export async function GET(request: NextRequest) {
       const cashFlow = Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month));
 
       // Get subscriptions
-      const subscriptions = await prisma.subscription.findMany();
+      const subscriptions = await prisma.subscription.findMany({
+        where: { user_id: userId },
+      });
 
       const txnRecords = transactions.map((t) => ({
         date: t.date.toISOString().split('T')[0],

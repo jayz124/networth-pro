@@ -1,12 +1,26 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 /**
- * GET /api/v1/portfolio/holdings — List ALL holdings across all portfolios with computed fields.
+ * GET /api/v1/portfolio/holdings — List ALL holdings across all of the user's portfolios with computed fields.
  */
 export async function GET() {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
+        // First get all portfolios belonging to the user
+        const userPortfolios = await prisma.portfolio.findMany({
+            where: { user_id: userId },
+            select: { id: true },
+        });
+        const portfolioIds = userPortfolios.map((p) => p.id);
+
         const holdings = await prisma.portfolioHolding.findMany({
+            where: { portfolio_id: { in: portfolioIds } },
             include: {
                 portfolio: { select: { name: true } },
             },

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { createLiabilitySchema } from '@/lib/validators/shared';
 
@@ -8,7 +9,13 @@ import { createLiabilitySchema } from '@/lib/validators/shared';
  */
 export async function GET() {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const liabilities = await prisma.liability.findMany({
+            where: { user_id: userId },
             include: {
                 balance_snapshots: {
                     orderBy: { date: 'desc' },
@@ -48,6 +55,11 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const parsed = createLiabilitySchema.safeParse(body);
 
@@ -60,9 +72,9 @@ export async function POST(request: NextRequest) {
 
         const data = parsed.data;
 
-        // Check for duplicate name
-        const existing = await prisma.liability.findUnique({
-            where: { name: data.name },
+        // Check for duplicate name within user's liabilities
+        const existing = await prisma.liability.findFirst({
+            where: { name: data.name, user_id: userId },
         });
         if (existing) {
             return NextResponse.json(
@@ -77,6 +89,7 @@ export async function POST(request: NextRequest) {
 
         const liability = await prisma.liability.create({
             data: {
+                user_id: userId,
                 name: liabilityData.name,
                 category: liabilityData.category ?? null,
                 currency: liabilityData.currency,

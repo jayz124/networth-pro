@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { updateCategorySchema } from '@/lib/validators/shared';
 
@@ -7,6 +8,11 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { id } = await params;
   const catId = parseInt(id, 10);
   if (isNaN(catId)) {
@@ -14,7 +20,7 @@ export async function PUT(
   }
 
   try {
-    const existing = await prisma.budgetCategory.findUnique({ where: { id: catId } });
+    const existing = await prisma.budgetCategory.findFirst({ where: { id: catId, user_id: userId } });
     if (!existing) {
       return NextResponse.json({ detail: 'Category not found' }, { status: 404 });
     }
@@ -49,6 +55,11 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { id } = await params;
   const catId = parseInt(id, 10);
   if (isNaN(catId)) {
@@ -56,7 +67,7 @@ export async function DELETE(
   }
 
   try {
-    const existing = await prisma.budgetCategory.findUnique({ where: { id: catId } });
+    const existing = await prisma.budgetCategory.findFirst({ where: { id: catId, user_id: userId } });
     if (!existing) {
       return NextResponse.json({ detail: 'Category not found' }, { status: 404 });
     }

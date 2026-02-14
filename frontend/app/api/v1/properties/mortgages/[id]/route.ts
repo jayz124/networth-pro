@@ -3,6 +3,7 @@
  * DELETE /api/v1/properties/mortgages/:id — Delete a mortgage
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { updateMortgageSchema } from '@/lib/validators/shared';
 
@@ -12,6 +13,11 @@ export async function PUT(
     request: NextRequest,
     context: RouteContext,
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id: rawId } = await context.params;
         const mortgageId = Number(rawId);
@@ -24,8 +30,17 @@ export async function PUT(
 
         const existing = await prisma.mortgage.findUnique({
             where: { id: mortgageId },
+            include: { property: true },
         });
         if (!existing) {
+            return NextResponse.json(
+                { detail: 'Mortgage not found' },
+                { status: 404 },
+            );
+        }
+
+        // Verify the parent property belongs to the authenticated user
+        if (existing.property.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Mortgage not found' },
                 { status: 404 },
@@ -81,6 +96,11 @@ export async function DELETE(
     _request: NextRequest,
     context: RouteContext,
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id: rawId } = await context.params;
         const mortgageId = Number(rawId);
@@ -93,8 +113,17 @@ export async function DELETE(
 
         const existing = await prisma.mortgage.findUnique({
             where: { id: mortgageId },
+            include: { property: true },
         });
         if (!existing) {
+            return NextResponse.json(
+                { detail: 'Mortgage not found' },
+                { status: 404 },
+            );
+        }
+
+        // Verify the parent property belongs to the authenticated user
+        if (existing.property.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Mortgage not found' },
                 { status: 404 },

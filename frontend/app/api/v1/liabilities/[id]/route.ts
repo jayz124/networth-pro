@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { updateLiabilitySchema } from '@/lib/validators/shared';
 
@@ -10,6 +11,11 @@ type RouteParams = { params: Promise<{ id: string }> };
  */
 export async function GET(_request: NextRequest, { params }: RouteParams) {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { id } = await params;
         const liabilityId = parseInt(id, 10);
 
@@ -31,6 +37,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         });
 
         if (!liability) {
+            return NextResponse.json(
+                { detail: 'Liability not found' },
+                { status: 404 },
+            );
+        }
+
+        if (liability.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Liability not found' },
                 { status: 404 },
@@ -72,6 +85,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
  */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { id } = await params;
         const liabilityId = parseInt(id, 10);
 
@@ -94,11 +112,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
         const data = parsed.data;
 
-        // Verify liability exists
+        // Verify liability exists and belongs to user
         const existing = await prisma.liability.findUnique({
             where: { id: liabilityId },
         });
         if (!existing) {
+            return NextResponse.json(
+                { detail: 'Liability not found' },
+                { status: 404 },
+            );
+        }
+        if (existing.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Liability not found' },
                 { status: 404 },
@@ -110,6 +134,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             const duplicate = await prisma.liability.findFirst({
                 where: {
                     name: data.name,
+                    user_id: userId,
                     id: { not: liabilityId },
                 },
             });
@@ -169,6 +194,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { id } = await params;
         const liabilityId = parseInt(id, 10);
 
@@ -183,6 +213,12 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
             where: { id: liabilityId },
         });
         if (!liability) {
+            return NextResponse.json(
+                { detail: 'Liability not found' },
+                { status: 404 },
+            );
+        }
+        if (liability.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Liability not found' },
                 { status: 404 },

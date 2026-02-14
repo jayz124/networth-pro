@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -7,7 +8,13 @@ import { prisma } from '@/lib/prisma';
  */
 export async function GET() {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const accounts = await prisma.account.findMany({
+            where: { user_id: userId },
             include: {
                 balance_snapshots: {
                     orderBy: { date: 'desc' },

@@ -6,15 +6,16 @@ async function convertCurrency(amount: number, fromCcy: string, toCcy: string): 
     return convert(amount, fromCcy, toCcy);
 }
 
-export async function getNetWorth(): Promise<NetWorth> {
+export async function getNetWorth(userId: string): Promise<NetWorth> {
     // 1. Get Base Currency
-    const settings = await prisma.appSettings.findUnique({
-        where: { key: 'default_currency' },
+    const settings = await prisma.appSettings.findFirst({
+        where: { key: 'default_currency', user_id: userId },
     });
     const baseCcy = settings?.value || 'USD';
 
     // 2. Cash Accounts (Assets)
     const accounts = await prisma.account.findMany({
+        where: { user_id: userId },
         include: {
             balance_snapshots: {
                 orderBy: { date: 'desc' },
@@ -43,6 +44,7 @@ export async function getNetWorth(): Promise<NetWorth> {
 
     // 3. Investments
     const portfolios = await prisma.portfolio.findMany({
+        where: { user_id: userId },
         include: {
             holdings: true,
         },
@@ -68,7 +70,9 @@ export async function getNetWorth(): Promise<NetWorth> {
     }
 
     // 4. Real Estate
-    const properties = await prisma.property.findMany();
+    const properties = await prisma.property.findMany({
+        where: { user_id: userId },
+    });
     let totalRealEstate = 0;
 
     for (const prop of properties) {
@@ -85,6 +89,7 @@ export async function getNetWorth(): Promise<NetWorth> {
 
     // 5. Liabilities & Mortgages
     const liabilities = await prisma.liability.findMany({
+        where: { user_id: userId },
         include: {
             balance_snapshots: {
                 orderBy: { date: 'desc' },
@@ -93,7 +98,7 @@ export async function getNetWorth(): Promise<NetWorth> {
         },
     });
     const mortgages = await prisma.mortgage.findMany({
-        where: { is_active: true },
+        where: { is_active: true, property: { user_id: userId } },
         include: {
             property: true,
         },
@@ -135,9 +140,9 @@ export async function getNetWorth(): Promise<NetWorth> {
     // Persist snapshot (upsert logic)
     const today = new Date().toISOString().split('T')[0];
     try {
-        // Check if snapshot exists
-        const existing = await prisma.netWorthSnapshot.findUnique({
-            where: { date: today },
+        // Check if snapshot exists for this user and date
+        const existing = await prisma.netWorthSnapshot.findFirst({
+            where: { date: today, user_id: userId },
         });
 
         // Calculate total mortgages for snapshot breakdown
@@ -148,6 +153,7 @@ export async function getNetWorth(): Promise<NetWorth> {
 
         const data = {
             date: today,
+            user_id: userId,
             total_cash: totalCash,
             total_investments: totalInvestments,
             total_real_estate: totalRealEstate,
@@ -158,7 +164,7 @@ export async function getNetWorth(): Promise<NetWorth> {
 
         if (existing) {
             await prisma.netWorthSnapshot.update({
-                where: { date: today },
+                where: { id: existing.id },
                 data,
             });
         } else {
@@ -186,8 +192,9 @@ export async function getNetWorth(): Promise<NetWorth> {
     };
 }
 
-export async function getNetWorthHistory() {
+export async function getNetWorthHistory(userId: string) {
     const snapshots = await prisma.netWorthSnapshot.findMany({
+        where: { user_id: userId },
         orderBy: { date: 'asc' },
     });
 
@@ -202,13 +209,14 @@ export async function getNetWorthHistory() {
     return history;
 }
 
-export async function getNetWorthBreakdown() {
+export async function getNetWorthBreakdown(userId: string) {
     // 1. Base Currency
-    const settings = await prisma.appSettings.findUnique({ where: { key: 'default_currency' } });
+    const settings = await prisma.appSettings.findFirst({ where: { key: 'default_currency', user_id: userId } });
     const baseCcy = settings?.value || 'USD';
 
     // 2. Cash
     const accounts = await prisma.account.findMany({
+        where: { user_id: userId },
         include: {
             balance_snapshots: { orderBy: { date: 'desc' }, take: 1 },
         },
@@ -230,7 +238,7 @@ export async function getNetWorthBreakdown() {
     }
 
     // 3. Investments
-    const portfolios = await prisma.portfolio.findMany({ include: { holdings: true } });
+    const portfolios = await prisma.portfolio.findMany({ where: { user_id: userId }, include: { holdings: true } });
     let totalInvestments = 0;
     const investmentItems = [];
 
@@ -249,7 +257,7 @@ export async function getNetWorthBreakdown() {
     }
 
     // 4. Real Estate
-    const properties = await prisma.property.findMany({ include: { mortgages: true } });
+    const properties = await prisma.property.findMany({ where: { user_id: userId }, include: { mortgages: true } });
     let totalRealEstate = 0;
     let totalMortgages = 0;
     const realEstateItems = [];
@@ -278,6 +286,7 @@ export async function getNetWorthBreakdown() {
 
     // 5. Liabilities
     const liabilities = await prisma.liability.findMany({
+        where: { user_id: userId },
         include: { balance_snapshots: { orderBy: { date: 'desc' }, take: 1 } },
     });
 

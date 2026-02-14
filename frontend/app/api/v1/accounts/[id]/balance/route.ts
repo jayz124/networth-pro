@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { balanceUpdateSchema } from '@/lib/validators/shared';
 
@@ -10,6 +11,11 @@ type RouteParams = { params: Promise<{ id: string }> };
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { id } = await params;
         const accountId = parseInt(id, 10);
 
@@ -36,6 +42,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             where: { id: accountId },
         });
         if (!account) {
+            return NextResponse.json(
+                { detail: 'Account not found' },
+                { status: 404 },
+            );
+        }
+        if (account.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Account not found' },
                 { status: 404 },

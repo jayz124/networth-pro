@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { updateAccountSchema } from '@/lib/validators/shared';
 
@@ -10,6 +11,11 @@ type RouteParams = { params: Promise<{ id: string }> };
  */
 export async function GET(_request: NextRequest, { params }: RouteParams) {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { id } = await params;
         const accountId = parseInt(id, 10);
 
@@ -31,6 +37,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         });
 
         if (!account) {
+            return NextResponse.json(
+                { detail: 'Account not found' },
+                { status: 404 },
+            );
+        }
+
+        if (account.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Account not found' },
                 { status: 404 },
@@ -73,6 +86,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
  */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { id } = await params;
         const accountId = parseInt(id, 10);
 
@@ -95,11 +113,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
         const data = parsed.data;
 
-        // Verify account exists
+        // Verify account exists and belongs to user
         const existing = await prisma.account.findUnique({
             where: { id: accountId },
         });
         if (!existing) {
+            return NextResponse.json(
+                { detail: 'Account not found' },
+                { status: 404 },
+            );
+        }
+        if (existing.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Account not found' },
                 { status: 404 },
@@ -111,6 +135,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             const duplicate = await prisma.account.findFirst({
                 where: {
                     name: data.name,
+                    user_id: userId,
                     id: { not: accountId },
                 },
             });
@@ -160,7 +185,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     } catch (error) {
         console.error('Error updating account:', error);
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { error: 'Internal Server Error', details: String(error) },
             { status: 500 },
         );
     }
@@ -172,6 +197,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { id } = await params;
         const accountId = parseInt(id, 10);
 
@@ -191,8 +221,25 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
                 { status: 404 },
             );
         }
+        if (account.user_id !== userId) {
+            return NextResponse.json(
+                { detail: 'Account not found' },
+                { status: 404 },
+            );
+        }
 
-        // Cascade delete handles snapshots via schema onDelete: Cascade
+        // Manually decouple transactions
+        await prisma.transaction.updateMany({
+            where: { account_id: accountId },
+            data: { account_id: null },
+        });
+
+        // Manually delete snapshots (Cascade might be failing in Prisma)
+        await prisma.balanceSnapshot.deleteMany({
+            where: { account_id: accountId },
+        });
+
+        // Delete the account
         await prisma.account.delete({
             where: { id: accountId },
         });
@@ -201,7 +248,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     } catch (error) {
         console.error('Error deleting account:', error);
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { error: 'Internal Server Error', details: String(error) },
             { status: 500 },
         );
     }

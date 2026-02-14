@@ -6,12 +6,13 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Account {
   id         Int      @id @default(autoincrement())
-  name       String   @unique
+  user_id    String
+  name       String
   institution String?
   type       String
   currency   String   @default("USD")
@@ -22,12 +23,15 @@ model Account {
   balance_snapshots BalanceSnapshot[]
   transactions      Transaction[]
 
+  @@unique([user_id, name])
+  @@index([user_id])
   @@map("account")
 }
 
 model Liability {
   id         Int      @id @default(autoincrement())
-  name       String   @unique
+  user_id    String
+  name       String
   category   String?
   currency   String   @default("USD")
   tags       String?
@@ -36,12 +40,15 @@ model Liability {
 
   balance_snapshots BalanceSnapshot[]
 
+  @@unique([user_id, name])
+  @@index([user_id])
   @@map("liability")
 }
 
 model Portfolio {
   id          Int      @id @default(autoincrement())
-  name        String   @unique
+  user_id     String
+  name        String
   description String?
   currency    String   @default("USD")
   is_active   Boolean  @default(true)
@@ -50,6 +57,8 @@ model Portfolio {
 
   holdings PortfolioHolding[]
 
+  @@unique([user_id, name])
+  @@index([user_id])
   @@map("portfolio")
 }
 
@@ -120,6 +129,7 @@ model PriceCache {
 
 model Property {
   id                   Int      @id @default(autoincrement())
+  user_id              String
   name                 String
   address              String
   property_type        String
@@ -136,6 +146,7 @@ model Property {
   valuations    PropertyValuationCache[]
   value_history PropertyValueHistory[]
 
+  @@index([user_id])
   @@map("property")
 }
 
@@ -200,7 +211,8 @@ model Mortgage {
 
 model RetirementPlan {
   id          Int      @id @default(autoincrement())
-  name        String   @unique
+  user_id     String
+  name        String
   description String?
   mode        String
   config_json String
@@ -208,12 +220,15 @@ model RetirementPlan {
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
+  @@unique([user_id, name])
+  @@index([user_id])
   @@map("retirementplan")
 }
 
 model BudgetCategory {
   id           Int      @id @default(autoincrement())
-  name         String   @unique
+  user_id      String
+  name         String
   icon         String?
   color        String?
   budget_limit Float?
@@ -224,11 +239,14 @@ model BudgetCategory {
   transactions  Transaction[]
   subscriptions Subscription[]
 
+  @@unique([user_id, name])
+  @@index([user_id])
   @@map("budgetcategory")
 }
 
 model Transaction {
   id                   Int             @id @default(autoincrement())
+  user_id              String
   date                 DateTime
   description          String
   amount               Float
@@ -244,12 +262,14 @@ model Transaction {
   created_at           DateTime @default(now())
   updated_at           DateTime @updatedAt
 
+  @@index([user_id])
   @@index([date])
   @@map("transaction")
 }
 
 model Subscription {
   id                Int             @id @default(autoincrement())
+  user_id           String
   name              String
   amount            Float
   frequency         String
@@ -260,12 +280,14 @@ model Subscription {
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
 
+  @@index([user_id])
   @@map("subscription")
 }
 
 model NetWorthSnapshot {
   id                Int      @id @default(autoincrement())
-  date              String   @unique
+  user_id           String
+  date              String
   total_cash        Float    @default(0.0)
   total_investments Float    @default(0.0)
   total_real_estate Float    @default(0.0)
@@ -274,27 +296,34 @@ model NetWorthSnapshot {
   net_worth         Float    @default(0.0)
   created_at        DateTime @default(now())
 
+  @@unique([user_id, date])
+  @@index([user_id])
   @@map("networthsnapshot")
 }
 
 model PlaidItem {
   id               Int      @id @default(autoincrement())
+  user_id          String
   item_id          String   @unique
   access_token     String
   institution_name String?
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
+  @@index([user_id])
   @@map("plaiditem")
 }
 
 model AppSettings {
   id         Int      @id @default(autoincrement())
-  key        String   @unique
+  user_id    String
+  key        String
   value      String?
   is_secret  Boolean  @default(false)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
+  @@unique([user_id, key])
+  @@index([user_id])
   @@map("appsettings")
 }

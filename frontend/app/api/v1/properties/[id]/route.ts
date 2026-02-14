@@ -4,6 +4,7 @@
  * DELETE /api/v1/properties/:id — Delete a property and its mortgages
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { updatePropertySchema } from '@/lib/validators/shared';
 
@@ -13,6 +14,11 @@ export async function GET(
     _request: NextRequest,
     context: RouteContext,
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id: rawId } = await context.params;
         const id = Number(rawId);
@@ -28,7 +34,7 @@ export async function GET(
             include: { mortgages: true },
         });
 
-        if (!prop) {
+        if (!prop || prop.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Property not found' },
                 { status: 404 },
@@ -84,6 +90,11 @@ export async function PUT(
     request: NextRequest,
     context: RouteContext,
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id: rawId } = await context.params;
         const id = Number(rawId);
@@ -95,7 +106,7 @@ export async function PUT(
         }
 
         const existing = await prisma.property.findUnique({ where: { id } });
-        if (!existing) {
+        if (!existing || existing.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Property not found' },
                 { status: 404 },
@@ -167,6 +178,11 @@ export async function DELETE(
     _request: NextRequest,
     context: RouteContext,
 ) {
+    const { userId } = await auth();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const { id: rawId } = await context.params;
         const id = Number(rawId);
@@ -178,7 +194,7 @@ export async function DELETE(
         }
 
         const existing = await prisma.property.findUnique({ where: { id } });
-        if (!existing) {
+        if (!existing || existing.user_id !== userId) {
             return NextResponse.json(
                 { detail: 'Property not found' },
                 { status: 404 },

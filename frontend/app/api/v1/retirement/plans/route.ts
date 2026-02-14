@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { createRetirementPlanSchema } from '@/lib/validators/shared';
 
 // GET /api/v1/retirement/plans — list all plans
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const plans = await prisma.retirementPlan.findMany({
+      where: { user_id: userId },
       orderBy: { created_at: 'desc' },
     });
     return NextResponse.json(plans);
@@ -17,6 +24,11 @@ export async function GET() {
 
 // POST /api/v1/retirement/plans — create a new plan
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const parsed = createRetirementPlanSchema.safeParse(body);
@@ -36,6 +48,7 @@ export async function POST(request: NextRequest) {
 
     const plan = await prisma.retirementPlan.create({
       data: {
+        user_id: userId,
         name: parsed.data.name,
         description: parsed.data.description || null,
         mode: parsed.data.mode,

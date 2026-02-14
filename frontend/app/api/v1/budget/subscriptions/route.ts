@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { createSubscriptionSchema } from '@/lib/validators/shared';
 
 // GET /api/v1/budget/subscriptions — list all subscriptions
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const subscriptions = await prisma.subscription.findMany({
+      where: { user_id: userId },
       include: {
         category: { select: { id: true, name: true, icon: true, color: true } },
       },
@@ -20,6 +27,11 @@ export async function GET() {
 
 // POST /api/v1/budget/subscriptions — create a new subscription
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const parsed = createSubscriptionSchema.safeParse(body);
@@ -32,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Validate category exists if provided
     if (parsed.data.category_id) {
-      const cat = await prisma.budgetCategory.findUnique({ where: { id: parsed.data.category_id } });
+      const cat = await prisma.budgetCategory.findFirst({ where: { id: parsed.data.category_id, user_id: userId } });
       if (!cat) {
         return NextResponse.json({ detail: 'Category not found' }, { status: 404 });
       }
@@ -40,6 +52,7 @@ export async function POST(request: NextRequest) {
 
     const subscription = await prisma.subscription.create({
       data: {
+        user_id: userId,
         name: parsed.data.name,
         amount: parsed.data.amount,
         frequency: parsed.data.frequency,
